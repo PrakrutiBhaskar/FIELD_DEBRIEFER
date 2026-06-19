@@ -6,7 +6,7 @@ export async function POST() {
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/callback`,
+      redirectTo: `https://field-debriefer.vercel.app/auth/callback`,
     },
   })
 
