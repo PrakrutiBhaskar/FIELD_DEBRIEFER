@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     console.log('exchange error:', error)
     if (!error) {
-      return NextResponse.redirect(`https://field-debriefer.vercel.app/officer/visits`)
+      return NextResponse.redirect(`https://field-debriefer.vercel.app/visits`)
     }
   }
 
