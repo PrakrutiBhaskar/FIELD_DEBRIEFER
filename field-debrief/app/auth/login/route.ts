@@ -10,6 +10,6 @@ export async function POST() {
     },
   })
 
-  if (data.url) redirect(data.url)
   if (error) redirect('/login?error=oauth_failed')
+  if (data.url) redirect(data.url)
 }
