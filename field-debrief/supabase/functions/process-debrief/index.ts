@@ -1,6 +1,5 @@
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!
 const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-const geminiKey = Deno.env.get('GEMINI_API_KEY')!
 const assemblyKey = Deno.env.get('ASSEMBLYAI_API_KEY')!
 
 const DEBRIEF_PROMPT_V1 = `
@@ -86,26 +85,31 @@ async function transcribeAudio(audioUrl: string): Promise<string> {
   return ''
 }
 
-async function callGemini(prompt: string): Promise<string> {
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.1,
-          maxOutputTokens: 1024,
+async function callGroq(prompt: string): Promise<string> {
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${Deno.env.get('GROQ_API_KEY')}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'llama-3.3-70b-versatile',
+      temperature: 0.1,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a JSON-only response bot. You must return only valid JSON with no explanation, no markdown, no code fences.',
         },
-      }),
-    }
-  )
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+    }),
+  })
   const data = await res.json()
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text || ''
-  // Return full data if text is empty for debugging
-  if (!text) return JSON.stringify(data)
-  return text
+  return data.choices?.[0]?.message?.content || ''
 }
 
 Deno.serve(async (req) => {
@@ -173,19 +177,25 @@ Deno.serve(async (req) => {
       .replace('{{transcript}}',         transcript || '(no voice memo)')
       .replace('{{last_3_visits_json}}', JSON.stringify(history || []))
 
-    // 5. Call Gemini with JSON mode
-    let raw = await callGemini(prompt)
+    // 5. Call Gemini and validate response
+    let raw = await callGroq(prompt)
     raw = raw.replace(/```json|```/g, '').trim()
 
     let debrief = null
     try {
       debrief = JSON.parse(raw)
+      if (debrief.error || !debrief.summary || !debrief.nudge_flag) {
+        throw new Error('Invalid debrief shape')
+      }
     } catch {
       // Retry once
-      raw = await callGemini(prompt)
+      raw = await callGroq(prompt)
       raw = raw.replace(/```json|```/g, '').trim()
       try {
         debrief = JSON.parse(raw)
+        if (debrief.error || !debrief.summary || !debrief.nudge_flag) {
+          throw new Error('Invalid debrief shape on retry')
+        }
       } catch {
         await supabaseFetch(`visits?id=eq.${visitId}`, {
           method: 'PATCH',
@@ -195,13 +205,44 @@ Deno.serve(async (req) => {
       }
     }
 
-    // 6. Save debrief
-    await supabaseFetch('debriefs', {
+    // 6. Build clean debrief — only fields that exist in DB
+    const cleanDebrief = {
+      visit_id:            visitId,
+      key_findings:        debrief.key_findings        || [],
+      blockers:            debrief.blockers             || [],
+      community_sentiment: debrief.community_sentiment  || 'Mixed',
+      follow_ups:          debrief.follow_ups           || [],
+      nudge_flag:          debrief.nudge_flag           || 'Routine',
+      recurring_issues:    debrief.recurring_issues     || [],
+      summary:             debrief.summary              || '',
+    }
+
+    // 7. Save debrief
+    const debriefInsertRes = await fetch(`${supabaseUrl}/rest/v1/debriefs`, {
       method: 'POST',
-      body: JSON.stringify({ visit_id: visitId, ...debrief }),
+      headers: {
+        'apikey': serviceRoleKey,
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=representation',
+      },
+      body: JSON.stringify(cleanDebrief),
     })
 
-    // 7. Update visit status
+    const debriefResult = await debriefInsertRes.json()
+
+    if (!debriefInsertRes.ok) {
+      await supabaseFetch(`visits?id=eq.${visitId}`, {
+        method: 'PATCH',
+        body: JSON.stringify({
+          debrief_status: 'failed',
+          debrief_raw: JSON.stringify(debriefResult),
+        }),
+      })
+      return new Response(`Debrief insert failed: ${JSON.stringify(debriefResult)}`, { status: 200 })
+    }
+
+    // 8. Update visit status to done
     await supabaseFetch(`visits?id=eq.${visitId}`, {
       method: 'PATCH',
       body: JSON.stringify({ debrief_status: 'done' }),
