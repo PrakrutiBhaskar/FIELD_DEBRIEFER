@@ -32,3 +32,15 @@ export const debriefOutputSchema = z.object({
 export const officerNoteSchema = z.object({
   note: z.string().min(1).max(2000),
 })
+
+export const patternRequestSchema = z.object({
+  visit_ids: z.array(z.string().uuid()).min(3).max(30),
+  filter_context: z.object({
+    location:     z.string().optional(),
+    program_area: z.string().optional(),
+    date_range:   z.object({
+      from: z.string(),
+      to:   z.string(),
+    }).optional(),
+  }).optional(),
+})
