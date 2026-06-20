@@ -27,19 +27,13 @@ export async function POST(request: NextRequest) {
 
   const { data, error } = await supabase
     .from('visits')
-    .insert({
-      officer_id:       user.id,
-      location_id,
-      visit_date,
-      program_area,
-      stakeholders:     stakeholders || [],
-      duration_mins,
-      text_notes,
-      voice_memo_path:  body.voice_memo_path || null,
-      debrief_status:   'pending',
-    })
-    .select('id')
-    .single()
+    .select(`
+      id, visit_date, program_area, debrief_status, created_at,
+      locations(name, district),
+      debriefs(summary, nudge_flag, community_sentiment, blockers)
+    `)
+    .order('created_at', { ascending: false })
+    .limit(50)
 
   if (error) return NextResponse.json({ error: { code: 'DB_ERROR', message: error.message } }, { status: 500 })
 
