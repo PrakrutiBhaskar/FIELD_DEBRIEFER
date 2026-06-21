@@ -198,7 +198,7 @@ export default function ManagerDashboard() {
                           {visit.locations?.district} · {visit.visit_date} · {visit.program_area}
                         </p>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0">
+                      <div className="flex gap-2 shrink-0">
                         {visit.debriefs?.nudge_flag && (
                           <span className={`text-xs px-2 py-1 rounded-full font-medium ${flagColor[visit.debriefs.nudge_flag]}`}>
                             {visit.debriefs.nudge_flag}

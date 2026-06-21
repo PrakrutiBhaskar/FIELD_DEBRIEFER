@@ -122,7 +122,7 @@ export default function VisitDetailPage() {
         {status === 'pending' && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-5" role="status" aria-live="polite">
             <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse flex-shrink-0"></span>
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
               <div>
                 <p className="text-sm font-medium text-blue-800">AI debrief generating...</p>
                 <p className="text-xs text-blue-600 mt-0.5">Usually ready in under 20 seconds. Your visit is saved.</p>
@@ -135,7 +135,7 @@ export default function VisitDetailPage() {
         {status === 'failed' && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-5" role="alert" aria-live="assertive">
             <div className="flex items-center gap-3">
-              <span className="text-red-500 text-lg flex-shrink-0">✕</span>
+              <span className="text-red-500 text-lg shrink-0">✕</span>
               <div>
                 <p className="text-sm font-medium text-red-800">AI summary couldn't be generated</p>
                 <p className="text-xs text-red-600 mt-0.5">Your visit notes are saved and visible to your manager.</p>
@@ -149,7 +149,7 @@ export default function VisitDetailPage() {
           <>
             {/* Success banner */}
             <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-              <span className="text-green-500 text-lg flex-shrink-0">✓</span>
+              <span className="text-green-500 text-lg shrink-0">✓</span>
               <div>
                 <p className="text-sm font-medium text-green-800">AI debrief ready</p>
                 <p className="text-xs text-green-600 mt-0.5">Review the structured intelligence below.</p>
@@ -178,7 +178,7 @@ export default function VisitDetailPage() {
                   <ul className="space-y-1.5">
                     {visit.debriefs.key_findings.map((f, i) => (
                       <li key={i} className="text-sm text-slate-700 flex gap-2.5 items-start">
-                        <span className="text-blue-400 mt-0.5 flex-shrink-0">•</span>{f}
+                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>{f}
                       </li>
                     ))}
                   </ul>
@@ -192,7 +192,7 @@ export default function VisitDetailPage() {
                   <ul className="space-y-1.5">
                     {visit.debriefs.blockers.map((b, i) => (
                       <li key={i} className="text-sm text-red-700 flex gap-2.5 items-start">
-                        <span className="mt-0.5 flex-shrink-0">✕</span>{b}
+                        <span className="mt-0.5 shrink-0">✕</span>{b}
                       </li>
                     ))}
                   </ul>
@@ -206,7 +206,7 @@ export default function VisitDetailPage() {
                   <ul className="space-y-1.5">
                     {visit.debriefs.follow_ups.map((f, i) => (
                       <li key={i} className="text-sm text-slate-700 flex gap-2.5 items-start">
-                        <span className="text-yellow-500 mt-0.5 flex-shrink-0">→</span>{f}
+                        <span className="text-yellow-500 mt-0.5 shrink-0">→</span>{f}
                       </li>
                     ))}
                   </ul>
@@ -220,7 +220,7 @@ export default function VisitDetailPage() {
                   <ul className="space-y-1.5">
                     {visit.debriefs.recurring_issues.map((r, i) => (
                       <li key={i} className="text-sm text-orange-700 flex gap-2.5 items-start">
-                        <span className="mt-0.5 flex-shrink-0">⚠</span>{r}
+                        <span className="mt-0.5 shrink-0">⚠</span>{r}
                       </li>
                     ))}
                   </ul>

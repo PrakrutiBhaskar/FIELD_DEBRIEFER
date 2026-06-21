@@ -62,7 +62,7 @@ export default function Navbar() {
     <nav className="bg-white border-b border-slate-200 px-4 py-3">
       <div className="max-w-3xl mx-auto flex items-center justify-between">
 
-        <span className="font-bold text-slate-800 text-sm flex-shrink-0">Field Debrief</span>
+        <span className="font-bold text-slate-800 text-sm shrink-0">Field Debrief</span>
 
         {/* Desktop nav */}
         <div className="hidden sm:flex items-center gap-6">
@@ -83,12 +83,12 @@ export default function Navbar() {
           </div>
           {profile && (
             <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400 truncate max-w-[120px]">
+              <span className="text-xs text-slate-400 truncate max-w-30">
                 {profile.full_name}
               </span>
               <button
                 onClick={handleSignOut}
-                className="text-xs text-slate-500 hover:text-slate-800 transition-colors flex-shrink-0"
+                className="text-xs text-slate-500 hover:text-slate-800 transition-colors shrink-0"
               >
                 Sign out
               </button>

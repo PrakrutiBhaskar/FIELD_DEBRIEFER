@@ -107,7 +107,7 @@ export default function VisitsPage() {
                           {visit.locations?.district} · {visit.visit_date} · {visit.program_area}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 shrink-0">
                         {visit.debriefs?.nudge_flag && (
                           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${flagColor[visit.debriefs.nudge_flag]}`}>
                             {visit.debriefs.nudge_flag}
