@@ -12,6 +12,25 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 })
 
   const { id } = await params
+
+  // Validate UUID format
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (!UUID_REGEX.test(id)) {
+    return NextResponse.json({ error: { code: 'INVALID_ID' } }, { status: 400 })
+  }
+
+  // Explicit ownership check — officers can only note their own visits
+  const { data: visit } = await supabase
+    .from('visits')
+    .select('officer_id')
+    .eq('id', id)
+    .eq('officer_id', user.id)
+    .single()
+
+  if (!visit) {
+    return NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
+  }
+
   const body = await request.json()
   const parsed = officerNoteSchema.safeParse(body)
 
@@ -19,7 +38,6 @@ export async function PATCH(
     return NextResponse.json({ error: { code: 'VALIDATION_ERROR' } }, { status: 400 })
   }
 
-  // Fetch existing note
   const { data: existing } = await supabase
     .from('debriefs')
     .select('officer_note')

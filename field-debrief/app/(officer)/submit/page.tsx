@@ -7,15 +7,15 @@ import { PROGRAM_AREAS } from '@/lib/schemas'
 type Location = { id: string; name: string; district: string }
 
 export default function SubmitVisitPage() {
-  const [recording, setRecording] = useState(false)
-const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
-const [recordingTime, setRecordingTime] = useState(0)
-const timerRef = useRef<NodeJS.Timeout | null>(null)
-const chunksRef = useRef<Blob[]>([])
   const router = useRouter()
   const [locations, setLocations] = useState<Location[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [recording, setRecording] = useState(false)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const timerRef = useRef<NodeJS.Timeout | null>(null)
+  const chunksRef = useRef<Blob[]>([])
 
   const [form, setForm] = useState({
     location_id:   '',
@@ -28,18 +28,15 @@ const chunksRef = useRef<Blob[]>([])
 
   const [voiceFile, setVoiceFile] = useState<File | null>(null)
 
-  // Restore from sessionStorage
   useEffect(() => {
     const saved = sessionStorage.getItem('visit_form_draft')
     if (saved) setForm(JSON.parse(saved))
   }, [])
 
-  // Save to sessionStorage on every change
   useEffect(() => {
     sessionStorage.setItem('visit_form_draft', JSON.stringify(form))
   }, [form])
 
-  // Fetch locations
   useEffect(() => {
     fetch('/api/v1/locations')
       .then(r => r.json())
@@ -67,48 +64,48 @@ const chunksRef = useRef<Blob[]>([])
   }
 
   const startRecording = async () => {
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    const recorder = new MediaRecorder(stream)
-    chunksRef.current = []
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      chunksRef.current = []
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
+        const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
+        setVoiceFile(file)
+        stream.getTracks().forEach(t => t.stop())
+      }
+
+      recorder.start()
+      setMediaRecorder(recorder)
+      setRecording(true)
+      setRecordingTime(0)
+
+      timerRef.current = setInterval(() => {
+        setRecordingTime(t => {
+          if (t >= 89) {
+            stopRecording()
+            return 90
+          }
+          return t + 1
+        })
+      }, 1000)
+    } catch {
+      setError('Microphone access denied. Please allow microphone access and try again.')
     }
+  }
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-      const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
-      setVoiceFile(file)
-      stream.getTracks().forEach(t => t.stop())
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop()
     }
-
-    recorder.start()
-    setMediaRecorder(recorder)
-    setRecording(true)
-    setRecordingTime(0)
-
-    timerRef.current = setInterval(() => {
-      setRecordingTime(t => {
-        if (t >= 89) {
-          stopRecording()
-          return 90
-        }
-        return t + 1
-      })
-    }, 1000)
-  } catch {
-    setError('Microphone access denied. Please allow microphone access and try again.')
+    setRecording(false)
+    if (timerRef.current) clearInterval(timerRef.current)
   }
-}
-
-const stopRecording = () => {
-  if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-    mediaRecorder.stop()
-  }
-  setRecording(false)
-  if (timerRef.current) clearInterval(timerRef.current)
-}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -124,8 +121,6 @@ const stopRecording = () => {
     try {
       let voice_memo_path = null
 
-      // Upload voice memo if present
-      // Upload voice memo via secure server route
       if (voiceFile) {
         const uploadFormData = new FormData()
         uploadFormData.append('file', voiceFile)
@@ -168,15 +163,18 @@ const stopRecording = () => {
       <div className="max-w-xl mx-auto">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-slate-800">Submit Field Visit</h1>
-          <p className="text-slate-500 text-sm mt-1">All fields marked * are required</p>
+          <p className="text-slate-500 text-sm mt-1">Fields marked * are required</p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
 
           {/* Location */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Location *</label>
+            <label htmlFor="location_id" className="block text-sm font-medium text-slate-700 mb-1">
+              Location *
+            </label>
             <select
+              id="location_id"
               name="location_id"
               value={form.location_id}
               onChange={handleChange}
@@ -192,8 +190,11 @@ const stopRecording = () => {
 
           {/* Date */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Visit Date *</label>
+            <label htmlFor="visit_date" className="block text-sm font-medium text-slate-700 mb-1">
+              Visit Date *
+            </label>
             <input
+              id="visit_date"
               type="date"
               name="visit_date"
               value={form.visit_date}
@@ -206,8 +207,11 @@ const stopRecording = () => {
 
           {/* Program Area */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Program Area *</label>
+            <label htmlFor="program_area" className="block text-sm font-medium text-slate-700 mb-1">
+              Program Area *
+            </label>
             <select
+              id="program_area"
               name="program_area"
               value={form.program_area}
               onChange={handleChange}
@@ -223,10 +227,11 @@ const stopRecording = () => {
 
           {/* Stakeholders */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="stakeholders" className="block text-sm font-medium text-slate-700 mb-1">
               Stakeholders Met <span className="text-slate-400">(comma separated)</span>
             </label>
             <input
+              id="stakeholders"
               type="text"
               name="stakeholders"
               value={form.stakeholders}
@@ -238,8 +243,11 @@ const stopRecording = () => {
 
           {/* Duration */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Duration (minutes)</label>
+            <label htmlFor="duration_mins" className="block text-sm font-medium text-slate-700 mb-1">
+              Duration (minutes)
+            </label>
             <input
+              id="duration_mins"
               type="number"
               name="duration_mins"
               value={form.duration_mins}
@@ -252,10 +260,11 @@ const stopRecording = () => {
 
           {/* Text Notes */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+            <label htmlFor="text_notes" className="block text-sm font-medium text-slate-700 mb-1">
               Notes <span className="text-slate-400">(required if no voice memo)</span>
             </label>
             <textarea
+              id="text_notes"
               name="text_notes"
               value={form.text_notes}
               onChange={handleChange}
@@ -266,59 +275,56 @@ const stopRecording = () => {
           </div>
 
           {/* Voice Memo */}
-          {/* Voice Memo */}
-<div>
-  <label className="block text-sm font-medium text-slate-700 mb-2">
-    Voice Memo <span className="text-slate-400">(max 90s)</span>
-  </label>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Voice Memo <span className="text-slate-400">(max 90s)</span>
+            </label>
 
-  {/* In-app recorder */}
-  <div className="flex items-center gap-3 mb-3">
-    {!recording ? (
-      <button
-        type="button"
-        onClick={startRecording}
-        className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-100 transition-colors"
-      >
-        <span className="w-2 h-2 rounded-full bg-red-500"></span>
-        Record Voice Note
-      </button>
-    ) : (
-      <button
-        type="button"
-        onClick={stopRecording}
-        className="flex items-center gap-2 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors animate-pulse"
-      >
-        <span className="w-2 h-2 rounded-full bg-white"></span>
-        Stop Recording ({recordingTime}s)
-      </button>
-    )}
-  </div>
+            <div className="flex items-center gap-3 mb-3">
+              {!recording ? (
+                <button
+                  type="button"
+                  onClick={startRecording}
+                  className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-100 transition-colors"
+                >
+                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                  Record Voice Note
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="flex items-center gap-2 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors animate-pulse"
+                >
+                  <span className="w-2 h-2 rounded-full bg-white"></span>
+                  Stop Recording ({recordingTime}s)
+                </button>
+              )}
+            </div>
 
-  {/* File upload fallback */}
-  <p className="text-xs text-slate-400 mb-2">Or upload a file (MP3/WAV/WebM, max 10MB)</p>
-  <input
-    type="file"
-    accept="audio/mpeg,audio/wav,audio/webm"
-    onChange={handleVoiceChange}
-    className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-  />
-  {voiceFile && (
-    <div className="flex items-center justify-between mt-2">
-      <p className="text-xs text-green-600">✓ {voiceFile.name}</p>
-      <button
-        type="button"
-        onClick={() => setVoiceFile(null)}
-        className="text-xs text-red-500 hover:underline"
-      >
-        Remove
-      </button>
-    </div>
-  )}
-</div>
+            <p className="text-xs text-slate-400 mb-2">Or upload a file (MP3/WAV/WebM, max 10MB)</p>
+            <input
+              type="file"
+              accept="audio/mpeg,audio/wav,audio/webm"
+              onChange={handleVoiceChange}
+              className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {voiceFile && (
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-xs text-green-600">✓ {voiceFile.name}</p>
+                <button
+                  type="button"
+                  onClick={() => setVoiceFile(null)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
               {error}
             </div>
           )}

@@ -13,7 +13,10 @@ export async function GET() {
     .eq('is_verified', true)
     .order('name')
 
-  if (error) return NextResponse.json({ error: { code: 'DB_ERROR' } }, { status: 500 })
+  if (error) {
+  console.error('Locations fetch error:', error.message)
+  return NextResponse.json({ error: { code: 'DB_ERROR', message: 'Failed to load locations.' } }, { status: 500 })
+}
 
   return NextResponse.json({ locations: data })
 }

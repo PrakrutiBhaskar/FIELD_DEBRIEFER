@@ -50,10 +50,10 @@ export default function Navbar() {
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) return null
 
   const navLinks = [
-    { href: '/visits',    label: 'My Visits',     roles: ['officer', 'manager', 'admin'] },
-    { href: '/submit',    label: 'Submit Visit',   roles: ['officer', 'manager', 'admin'] },
-    { href: '/dashboard', label: 'Dashboard',      roles: ['manager', 'admin'] },
-    { href: '/admin',     label: 'Admin',          roles: ['admin'] },
+    { href: '/visits',    label: 'My Visits',   roles: ['officer', 'manager', 'admin'] },
+    { href: '/submit',    label: 'Submit Visit', roles: ['officer', 'manager', 'admin'] },
+    { href: '/dashboard', label: 'Dashboard',    roles: ['manager', 'admin'] },
+    { href: '/admin',     label: 'Admin',        roles: ['admin'] },
   ]
 
   const visibleLinks = navLinks.filter(l => profile?.role && l.roles.includes(profile.role))
@@ -62,7 +62,6 @@ export default function Navbar() {
     <nav className="bg-white border-b border-slate-200 px-4 py-3">
       <div className="max-w-3xl mx-auto flex items-center justify-between">
 
-        {/* Logo */}
         <span className="font-bold text-slate-800 text-sm flex-shrink-0">Field Debrief</span>
 
         {/* Desktop nav */}
@@ -101,16 +100,20 @@ export default function Navbar() {
         <button
           className="sm:hidden flex flex-col gap-1.5 p-2"
           onClick={() => setMenuOpen(!menuOpen)}
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+          aria-label="Toggle navigation menu"
         >
           <span className={`block w-5 h-0.5 bg-slate-600 transition-transform ${menuOpen ? 'rotate-45 translate-y-2' : ''}`}></span>
           <span className={`block w-5 h-0.5 bg-slate-600 transition-opacity ${menuOpen ? 'opacity-0' : ''}`}></span>
           <span className={`block w-5 h-0.5 bg-slate-600 transition-transform ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`}></span>
         </button>
+
       </div>
 
       {/* Mobile menu */}
       {menuOpen && (
-        <div className="sm:hidden border-t border-slate-100 mt-3 pt-3 space-y-1">
+        <div id="mobile-menu" className="sm:hidden border-t border-slate-100 mt-3 pt-3 space-y-1">
           {visibleLinks.map(l => (
             <Link
               key={l.href}

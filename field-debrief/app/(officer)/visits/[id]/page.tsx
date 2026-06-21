@@ -104,16 +104,24 @@ export default function VisitDetailPage() {
 
         {/* Debrief status */}
         {status === 'pending' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-700">
-            ⏳ Visit saved — AI debrief generating (usually under 20s)...
-          </div>
-        )}
+  <div
+    role="status"
+    aria-live="polite"
+    className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-sm text-blue-700"
+  >
+    ⏳ Visit saved — AI debrief generating (usually under 20s)...
+  </div>
+)}
 
-        {status === 'failed' && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700">
-            Visit saved successfully. AI summary couldn't be generated — your notes are visible to your manager.
-          </div>
-        )}
+{status === 'failed' && (
+  <div
+    role="alert"
+    aria-live="assertive"
+    className="bg-red-50 border border-red-200 rounded-xl p-5 text-sm text-red-700"
+  >
+    Visit saved successfully. AI summary couldn't be generated — your notes are visible to your manager.
+  </div>
+)}
 
         {/* Debrief card */}
         {status === 'done' && visit.debriefs && (

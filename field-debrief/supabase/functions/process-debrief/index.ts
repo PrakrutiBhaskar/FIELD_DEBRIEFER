@@ -115,6 +115,10 @@ async function callGroq(prompt: string): Promise<string> {
 Deno.serve(async (req) => {
   let visitId = ''
   try {
+    const webhookSecret = req.headers.get('x-webhook-secret')
+  if (webhookSecret !== Deno.env.get('WEBHOOK_SECRET')) {
+    return new Response('Unauthorized', { status: 401 })
+  }
     const payload = await req.json()
     visitId = payload.record?.id
 
@@ -131,7 +135,14 @@ Deno.serve(async (req) => {
     )
     const visit = visits[0]
     if (!visit) return new Response('Visit not found', { status: 404 })
+    
+     if (!visit) return new Response('Visit not found', { status: 404 })
 
+    // Idempotency guard — don't reprocess completed visits
+    if (visit.debrief_status !== 'pending') {
+      return new Response('Already processed', { status: 200 })
+    } 
+      
     // 2. Transcribe voice memo if present
     let transcript = ''
     if (visit.voice_memo_path) {

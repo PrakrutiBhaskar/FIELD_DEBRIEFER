@@ -41,7 +41,10 @@ export async function POST(request: NextRequest) {
     .select('id')
     .single()
 
-  if (error) return NextResponse.json({ error: { code: 'DB_ERROR', message: error.message } }, { status: 500 })
+  if (error) {
+  console.error('DB error:', error.message)
+  return NextResponse.json({ error: { code: 'DB_ERROR', message: 'An error occurred. Please try again.' } }, { status: 500 })
+}
 
   return NextResponse.json({ visit_id: (data as { id: string }).id, debrief_status: 'pending' }, { status: 201 })
 }
@@ -52,17 +55,31 @@ export async function GET(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: { code: 'UNAUTHORIZED' } }, { status: 401 })
 
-  const { data, error } = await supabase
+  const { searchParams } = new URL(request.url)
+  const page      = Math.max(1, parseInt(searchParams.get('page') || '1'))
+  const pageSize  = Math.min(50, Math.max(1, parseInt(searchParams.get('page_size') || '20')))
+  const from      = (page - 1) * pageSize
+  const to        = from + pageSize - 1
+
+  const { data, error, count } = await supabase
     .from('visits')
     .select(`
       id, visit_date, program_area, debrief_status, created_at,
       locations(name, district),
-      debriefs(summary, nudge_flag)
-    `)
+      debriefs(summary, nudge_flag, community_sentiment, blockers)
+    `, { count: 'exact' })
     .order('created_at', { ascending: false })
-    .limit(50)
+    .range(from, to)
 
-  if (error) return NextResponse.json({ error: { code: 'DB_ERROR' } }, { status: 500 })
+  if (error) {
+  console.error('DB error:', error.message)
+  return NextResponse.json({ error: { code: 'DB_ERROR', message: 'An error occurred. Please try again.' } }, { status: 500 })
+}
 
-  return NextResponse.json({ visits: data })
+  return NextResponse.json({
+    visits:    data,
+    total:     count,
+    page,
+    page_size: pageSize,
+  })
 }
