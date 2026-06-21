@@ -7,6 +7,17 @@ import { toast } from '@/components/toast'
 
 type Location = { id: string; name: string; district: string }
 
+const inputStyle = {
+  width: '100%',
+  border: '1px solid #DDD6C8',
+  borderRadius: '0.75rem',
+  padding: '0.625rem 0.75rem',
+  fontSize: '0.875rem',
+  background: '#FDFAF5',
+  color: '#1E2A22',
+  outline: 'none',
+}
+
 export default function SubmitVisitPage() {
   const router = useRouter()
   const [locations, setLocations] = useState<Location[]>([])
@@ -19,58 +30,28 @@ export default function SubmitVisitPage() {
   const chunksRef = useRef<Blob[]>([])
 
   const [form, setForm] = useState({
-    location_id:   '',
-    visit_date:    new Date().toISOString().split('T')[0],
-    program_area:  '',
-    stakeholders:  '',
-    duration_mins: '',
-    text_notes:    '',
+    location_id: '', visit_date: new Date().toISOString().split('T')[0],
+    program_area: '', stakeholders: '', duration_mins: '', text_notes: '',
   })
-
   const [voiceFile, setVoiceFile] = useState<File | null>(null)
 
   useEffect(() => {
     const saved = sessionStorage.getItem('visit_form_draft')
     if (saved) setForm(JSON.parse(saved))
   }, [])
-
+  useEffect(() => { sessionStorage.setItem('visit_form_draft', JSON.stringify(form)) }, [form])
   useEffect(() => {
-    sessionStorage.setItem('visit_form_draft', JSON.stringify(form))
-  }, [form])
-
-  useEffect(() => {
-  const cached = sessionStorage.getItem('locations_cache')
-  if (cached) {
-    setLocations(JSON.parse(cached))
-    return
-  }
-  fetch('/api/v1/locations')
-    .then(r => r.json())
-    .then(d => {
+    const cached = sessionStorage.getItem('locations_cache')
+    if (cached) { setLocations(JSON.parse(cached)); return }
+    fetch('/api/v1/locations').then(r => r.json()).then(d => {
       const locs = d.locations || []
       setLocations(locs)
       sessionStorage.setItem('locations_cache', JSON.stringify(locs))
     })
-}, [])
+  }, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
-  }
-
-  const handleVoiceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (file.size > 10 * 1024 * 1024) {
-      setError('Voice memo must be under 10MB')
-      return
-    }
-    const allowed = ['audio/mpeg', 'audio/wav', 'audio/webm', 'audio/mp3']
-    if (!allowed.includes(file.type)) {
-      setError('Only MP3, WAV, or WebM audio files are allowed')
-      return
-    }
-    setError('')
-    setVoiceFile(file)
   }
 
   const startRecording = async () => {
@@ -78,41 +59,27 @@ export default function SubmitVisitPage() {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
-
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data)
-      }
-
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-        const file = new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' })
-        setVoiceFile(file)
+        setVoiceFile(new File([blob], `recording-${Date.now()}.webm`, { type: 'audio/webm' }))
         stream.getTracks().forEach(t => t.stop())
       }
-
       recorder.start()
       setMediaRecorder(recorder)
       setRecording(true)
       setRecordingTime(0)
-
       timerRef.current = setInterval(() => {
         setRecordingTime(t => {
-          if (t >= 89) {
-            stopRecording()
-            return 90
-          }
+          if (t >= 89) { stopRecording(); return 90 }
           return t + 1
         })
       }, 1000)
-    } catch {
-      setError('Microphone access denied. Please allow microphone access and try again.')
-    }
+    } catch { setError('Microphone access denied. Please allow microphone access and try again.') }
   }
 
   const stopRecording = () => {
-    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop()
-    }
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop()
     setRecording(false)
     if (timerRef.current) clearInterval(timerRef.current)
   }
@@ -120,233 +87,155 @@ export default function SubmitVisitPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-
-    if (!form.text_notes && !voiceFile) {
-      setError('Please provide text notes or a voice memo')
-      return
-    }
-
+    if (!form.text_notes && !voiceFile) { setError('Please provide text notes or a voice memo'); return }
     setLoading(true)
-
     try {
       let voice_memo_path = null
-
       if (voiceFile) {
-        const uploadFormData = new FormData()
-        uploadFormData.append('file', voiceFile)
-        const uploadRes = await fetch('/api/v1/upload', {
-          method: 'POST',
-          body: uploadFormData,
-        })
-        const uploadData = await uploadRes.json()
-        if (!uploadRes.ok) throw new Error(uploadData.error || 'Voice upload failed')
-        voice_memo_path = uploadData.path
+        const fd = new FormData()
+        fd.append('file', voiceFile)
+        const ur = await fetch('/api/v1/upload', { method: 'POST', body: fd })
+        const ud = await ur.json()
+        if (!ur.ok) throw new Error(ud.error || 'Voice upload failed')
+        voice_memo_path = ud.path
       }
-
       const res = await fetch('/api/v1/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
           duration_mins: form.duration_mins ? Number(form.duration_mins) : undefined,
-          stakeholders: form.stakeholders
-            ? form.stakeholders.split(',').map(s => s.trim()).filter(Boolean)
-            : [],
+          stakeholders: form.stakeholders ? form.stakeholders.split(',').map(s => s.trim()).filter(Boolean) : [],
           voice_memo_path,
         }),
       })
-
       const data = await res.json()
       if (!res.ok) throw new Error(data.error?.message || 'Submission failed')
-
       sessionStorage.removeItem('visit_form_draft')
-toast('Visit submitted — debrief generating...')
-router.push(`/visits/${data.visit_id}`)
+      toast('Visit submitted — debrief generating…')
       router.push(`/visits/${data.visit_id}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')
-    } finally {
-      setLoading(false)
-    }
+    } finally { setLoading(false) }
   }
 
+  const Label = ({ children, required: req }: { children: React.ReactNode; required?: boolean }) => (
+    <label className="block text-sm font-medium mb-1.5" style={{ color: '#4A3728' }}>
+      {children}{req && <span style={{ color: '#B5521B' }}> *</span>}
+    </label>
+  )
+
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen py-8 px-4" style={{ background: '#F5F0E8' }}>
       <div className="max-w-xl mx-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-slate-800">Submit Field Visit</h1>
-          <p className="text-slate-500 text-sm mt-1">Fields marked * are required</p>
+          <h1 className="text-2xl font-bold" style={{ color: '#1E2A22' }}>New Visit</h1>
+          <p className="text-sm mt-1" style={{ color: '#6B7C74' }}>Fields marked * are required</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-5"
+          style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
 
-          {/* Location */}
+          {/* Location + Date row */}
           <div>
-            <label htmlFor="location_id" className="block text-sm font-medium text-slate-700 mb-1">
-              Location *
-            </label>
-            <select
-              id="location_id"
-              name="location_id"
-              value={form.location_id}
-              onChange={handleChange}
-              required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
+            <Label required>Location</Label>
+            <select name="location_id" value={form.location_id} onChange={handleChange} required style={inputStyle}>
               <option value="">Select a location</option>
-              {locations.map(l => (
-                <option key={l.id} value={l.id}>{l.name} — {l.district}</option>
-              ))}
+              {locations.map(l => <option key={l.id} value={l.id}>{l.name}, {l.district} district</option>)}
             </select>
           </div>
 
-          {/* Date */}
-          <div>
-            <label htmlFor="visit_date" className="block text-sm font-medium text-slate-700 mb-1">
-              Visit Date *
-            </label>
-            <input
-              id="visit_date"
-              type="date"
-              name="visit_date"
-              value={form.visit_date}
-              onChange={handleChange}
-              max={new Date().toISOString().split('T')[0]}
-              required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Program Area */}
-          <div>
-            <label htmlFor="program_area" className="block text-sm font-medium text-slate-700 mb-1">
-              Program Area *
-            </label>
-            <select
-              id="program_area"
-              name="program_area"
-              value={form.program_area}
-              onChange={handleChange}
-              required
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select program area</option>
-              {PROGRAM_AREAS.map(p => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Stakeholders */}
-          <div>
-            <label htmlFor="stakeholders" className="block text-sm font-medium text-slate-700 mb-1">
-              Stakeholders Met <span className="text-slate-400">(comma separated)</span>
-            </label>
-            <input
-              id="stakeholders"
-              type="text"
-              name="stakeholders"
-              value={form.stakeholders}
-              onChange={handleChange}
-              placeholder="e.g. Gram Panchayat head, SHG leader"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Duration */}
-          <div>
-            <label htmlFor="duration_mins" className="block text-sm font-medium text-slate-700 mb-1">
-              Duration (minutes)
-            </label>
-            <input
-              id="duration_mins"
-              type="number"
-              name="duration_mins"
-              value={form.duration_mins}
-              onChange={handleChange}
-              placeholder="e.g. 90"
-              min="1"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Text Notes */}
-          <div>
-            <label htmlFor="text_notes" className="block text-sm font-medium text-slate-700 mb-1">
-              Notes <span className="text-slate-400">(required if no voice memo)</span>
-            </label>
-            <textarea
-              id="text_notes"
-              name="text_notes"
-              value={form.text_notes}
-              onChange={handleChange}
-              rows={5}
-              placeholder="What happened during the visit? Key observations, conversations, issues..."
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
-
-          {/* Voice Memo */}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-2">
-              Voice Memo <span className="text-slate-400">(max 90s)</span>
-            </label>
-
-            <div className="flex items-center gap-3 mb-3">
-              {!recording ? (
-                <button
-                  type="button"
-                  onClick={startRecording}
-                  className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-100 transition-colors"
-                >
-                  <span className="w-2 h-2 rounded-full bg-red-500"></span>
-                  Record Voice Note
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={stopRecording}
-                  className="flex items-center gap-2 bg-red-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-red-700 transition-colors animate-pulse"
-                >
-                  <span className="w-2 h-2 rounded-full bg-white"></span>
-                  Stop Recording ({recordingTime}s)
-                </button>
-              )}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label required>Visit date</Label>
+              <input type="date" name="visit_date" value={form.visit_date} onChange={handleChange}
+                max={new Date().toISOString().split('T')[0]} required style={inputStyle} />
             </div>
-
-            <p className="text-xs text-slate-400 mb-2">Or upload a file (MP3/WAV/WebM, max 10MB)</p>
-            <input
-              type="file"
-              accept="audio/mpeg,audio/wav,audio/webm"
-              onChange={handleVoiceChange}
-              className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {voiceFile && (
-              <div className="flex items-center justify-between mt-2">
-                <p className="text-xs text-green-600">✓ {voiceFile.name}</p>
-                <button
-                  type="button"
-                  onClick={() => setVoiceFile(null)}
-                  className="text-xs text-red-500 hover:underline"
-                >
-                  Remove
-                </button>
+            <div>
+              <Label>Duration</Label>
+              <div className="relative">
+                <input type="number" name="duration_mins" value={form.duration_mins} onChange={handleChange}
+                  placeholder="mins" min="1" style={{ ...inputStyle, paddingRight: '2.5rem' }} />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs" style={{ color: '#6B7C74' }}>min</span>
               </div>
-            )}
+            </div>
+          </div>
+
+          <div>
+            <Label required>Program area</Label>
+            <select name="program_area" value={form.program_area} onChange={handleChange} required style={inputStyle}>
+              <option value="">Select program area</option>
+              {PROGRAM_AREAS.map(p => <option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <Label>Stakeholders met</Label>
+            <input type="text" name="stakeholders" value={form.stakeholders} onChange={handleChange}
+              placeholder="e.g. Gram Panchayat head, SHG leader" style={inputStyle} />
+          </div>
+
+          <div>
+            <Label>Notes <span className="font-normal" style={{ color: '#6B7C74' }}>(required if no voice memo)</span></Label>
+            <textarea name="text_notes" value={form.text_notes} onChange={handleChange} rows={5}
+              placeholder="What happened during the visit? Key observations, conversations, issues…"
+              style={{ ...inputStyle, resize: 'none' }} />
+          </div>
+
+          {/* Voice memo */}
+          <div>
+            <Label>Voice memo <span className="font-normal" style={{ color: '#6B7C74' }}>(max 90s)</span></Label>
+            <div className="rounded-xl p-4" style={{ background: '#FAE8DF', border: '1px solid #F4BFA3' }}>
+              <div className="flex items-center gap-3">
+                {!recording ? (
+                  <button type="button" onClick={startRecording}
+                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+                    style={{ background: '#B5521B', color: '#FDFAF5' }}>
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#FDFAF5' }}></span>
+                    Tap to record
+                  </button>
+                ) : (
+                  <button type="button" onClick={stopRecording}
+                    className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium animate-pulse"
+                    style={{ background: '#991B1B', color: 'white' }}>
+                    <span className="w-2 h-2 rounded-sm" style={{ background: 'white' }}></span>
+                    Stop ({recordingTime}s / 90s)
+                  </button>
+                )}
+                {voiceFile && !recording && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium" style={{ color: '#2D4A3E' }}>✓ Recorded</span>
+                    <button type="button" onClick={() => setVoiceFile(null)}
+                      className="text-xs" style={{ color: '#B5521B' }}>Remove</button>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs mt-2" style={{ color: '#92400E' }}>
+                Or upload a file (MP3/WAV/WebM, max 10MB)
+              </p>
+              <input type="file" accept="audio/mpeg,audio/wav,audio/webm"
+                onChange={e => {
+                  const f = e.target.files?.[0]
+                  if (!f) return
+                  if (f.size > 10 * 1024 * 1024) { setError('Voice memo must be under 10MB'); return }
+                  setError(''); setVoiceFile(f)
+                }}
+                className="mt-2 w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium"
+                style={{ color: '#6B7C74' }} />
+            </div>
           </div>
 
           {error && (
-            <div role="alert" className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+            <div role="alert" className="rounded-xl px-4 py-3 text-sm"
+              style={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA' }}>
               {error}
             </div>
           )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white rounded-lg py-3 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Submitting...' : 'Submit Visit'}
+          <button type="submit" disabled={loading}
+            className="w-full rounded-xl py-3 text-sm font-medium transition-colors"
+            style={{ background: loading ? '#D9A08A' : '#B5521B', color: '#FDFAF5', cursor: loading ? 'not-allowed' : 'pointer' }}>
+            {loading ? 'Submitting…' : 'Submit visit'}
           </button>
         </form>
       </div>

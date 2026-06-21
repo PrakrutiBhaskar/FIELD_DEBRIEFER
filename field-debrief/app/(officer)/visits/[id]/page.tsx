@@ -16,25 +16,29 @@ type Debrief = {
 }
 
 type Visit = {
-  id: string
-  visit_date: string
-  program_area: string
+  id: string; visit_date: string; program_area: string
   debrief_status: 'pending' | 'done' | 'failed'
   locations: { name: string; district: string }
   debriefs: Debrief | null
 }
 
-const sentimentConfig = {
-  Positive: { color: 'bg-green-100 text-green-700', icon: '↑' },
-  Mixed:    { color: 'bg-yellow-100 text-yellow-700', icon: '→' },
-  Negative: { color: 'bg-red-100 text-red-700', icon: '↓' },
+const SENTIMENT = {
+  Positive: { bg: '#DCFCE7', color: '#166534', label: 'Positive sentiment' },
+  Mixed:    { bg: '#FEF9C3', color: '#713F12', label: 'Mixed sentiment' },
+  Negative: { bg: '#FEE2E2', color: '#991B1B', label: 'Negative sentiment' },
 }
 
-const flagConfig = {
-  Routine:           { color: 'bg-slate-100 text-slate-600', border: 'border-slate-200' },
-  'Needs Attention': { color: 'bg-yellow-100 text-yellow-700', border: 'border-yellow-200' },
-  Escalate:          { color: 'bg-red-100 text-red-700', border: 'border-red-300' },
+const FLAG = {
+  'Routine':          { bg: '#E2EDE9', color: '#2D4A3E' },
+  'Needs Attention':  { bg: '#FEF3C7', color: '#92400E' },
+  'Escalate':         { bg: '#FEE2E2', color: '#991B1B' },
 }
+
+const SectionLabel = ({ children }: { children: React.ReactNode }) => (
+  <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#6B7C74' }}>
+    {children}
+  </p>
+)
 
 export default function VisitDetailPage() {
   const { id } = useParams()
@@ -42,24 +46,17 @@ export default function VisitDetailPage() {
   const [status, setStatus] = useState<'pending' | 'done' | 'failed'>('pending')
   const [note, setNote] = useState('')
   const [savingNote, setSavingNote] = useState(false)
-  const [noteSaved, setNoteSaved] = useState(false)
 
   const fetchVisit = async () => {
     const res = await fetch(`/api/v1/visits/${id}`)
     const data = await res.json()
-    if (data.visit) {
-      setVisit(data.visit)
-      setStatus(data.visit.debrief_status)
-    }
+    if (data.visit) { setVisit(data.visit); setStatus(data.visit.debrief_status) }
   }
 
   useEffect(() => { fetchVisit() }, [id])
-
   useEffect(() => {
     if (status !== 'pending') return
-    const interval = setInterval(async () => {
-      await fetchVisit()
-    }, 5000)
+    const interval = setInterval(fetchVisit, 5000)
     return () => clearInterval(interval)
   }, [status])
 
@@ -71,197 +68,181 @@ export default function VisitDetailPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ note }),
     })
-    if (res.ok) {
-      toast('Note saved successfully')
-      setNote('')
-      setNoteSaved(true)
-      setTimeout(() => setNoteSaved(false), 3000)
-      await fetchVisit()
-    } else {
-      toast('Failed to save note', 'error')
-    }
+    if (res.ok) { toast('Note saved'); setNote(''); await fetchVisit() }
+    else toast('Failed to save note', 'error')
     setSavingNote(false)
   }
 
   if (!visit) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="flex items-center gap-2 text-slate-400 text-sm">
-        <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-        Loading visit...
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5F0E8' }}>
+      <div className="flex items-center gap-2 text-sm" style={{ color: '#6B7C74' }}>
+        <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: '#B5521B' }}></span>
+        Loading visit…
       </div>
     </div>
   )
 
   const flag = visit.debriefs?.nudge_flag
-  const flagStyle = flag ? flagConfig[flag] : null
+  const flagStyle = flag ? FLAG[flag] : null
+  const isEscalate = flag === 'Escalate'
 
   return (
-    <div className="min-h-screen bg-slate-50 py-8 px-4">
+    <div className="min-h-screen py-8 px-4" style={{ background: '#F5F0E8' }}>
       <div className="max-w-2xl mx-auto space-y-4">
 
-        {/* Header */}
-        <div className={`bg-white rounded-xl border p-6 ${
-          flag === 'Escalate' ? 'border-l-4 border-l-red-400 border-slate-200' : 'border-slate-200'
-        }`}>
+        {/* Header card */}
+        <div className="rounded-2xl p-5"
+          style={{
+            background: '#FDFAF5',
+            border: '1px solid #DDD6C8',
+            borderLeft: isEscalate ? '4px solid #EF4444' : undefined,
+          }}
+        >
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-xl font-bold text-slate-800">{visit.locations.name}</h1>
-              <p className="text-slate-500 text-sm mt-1">
-                {visit.locations.district} · {visit.visit_date} · {visit.program_area}
+              <h1 className="text-xl font-bold" style={{ color: '#1E2A22' }}>{visit.locations.name}</h1>
+              <p className="text-sm mt-1" style={{ color: '#6B7C74' }}>
+                {visit.locations.district} · {new Date(visit.visit_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · {visit.program_area}
               </p>
             </div>
-            {flag && flagStyle && (
-              <span className={`text-xs font-medium px-3 py-1 rounded-full ${flagStyle.color}`}>
-                {flag === 'Escalate' && '⚠ '}{flag}
+            {flagStyle && flag && (
+              <span className="text-xs font-medium px-3 py-1 rounded-full"
+                style={{ background: flagStyle.bg, color: flagStyle.color }}>
+                {isEscalate && '⚠ '}{flag}
               </span>
             )}
           </div>
         </div>
 
-        {/* Pending state */}
+        {/* Pending */}
         {status === 'pending' && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-5" role="status" aria-live="polite">
+          <div className="rounded-2xl p-5" role="status" aria-live="polite"
+            style={{ background: '#FAE8DF', border: '1px solid #F4BFA3' }}>
             <div className="flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse shrink-0"></span>
+              <span className="w-2 h-2 rounded-full animate-pulse shrink-0" style={{ background: '#B5521B' }}></span>
               <div>
-                <p className="text-sm font-medium text-blue-800">AI debrief generating...</p>
-                <p className="text-xs text-blue-600 mt-0.5">Usually ready in under 20 seconds. Your visit is saved.</p>
+                <p className="text-sm font-medium" style={{ color: '#7C2D12' }}>AI debrief generating…</p>
+                <p className="text-xs mt-0.5" style={{ color: '#92400E' }}>Usually ready in under 20 seconds. Your visit is saved.</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Failed state */}
+        {/* Failed */}
         {status === 'failed' && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-5" role="alert" aria-live="assertive">
+          <div className="rounded-2xl p-5" role="alert"
+            style={{ background: '#FEE2E2', border: '1px solid #FECACA' }}>
             <div className="flex items-center gap-3">
-              <span className="text-red-500 text-lg shrink-0">✕</span>
+              <span className="shrink-0 text-lg" style={{ color: '#EF4444' }}>✕</span>
               <div>
-                <p className="text-sm font-medium text-red-800">AI summary couldn't be generated</p>
-                <p className="text-xs text-red-600 mt-0.5">Your visit notes are saved and visible to your manager.</p>
+                <p className="text-sm font-medium" style={{ color: '#7F1D1D' }}>AI summary couldn't be generated</p>
+                <p className="text-xs mt-0.5" style={{ color: '#991B1B' }}>Your visit notes are saved and visible to your manager.</p>
               </div>
             </div>
           </div>
         )}
 
-        {/* Success debrief card */}
+        {/* Debrief */}
         {status === 'done' && visit.debriefs && (
           <>
-            {/* Success banner */}
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
-              <span className="text-green-500 text-lg shrink-0">✓</span>
+            {/* Summary card */}
+            <div className="rounded-2xl p-5 space-y-4" style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
               <div>
-                <p className="text-sm font-medium text-green-800">AI debrief ready</p>
-                <p className="text-xs text-green-600 mt-0.5">Review the structured intelligence below.</p>
+                <SectionLabel>Summary</SectionLabel>
+                <p className="text-sm leading-relaxed" style={{ color: '#1E2A22' }}>{visit.debriefs.summary}</p>
+                <div className="mt-3">
+                  <span className="text-xs font-medium px-3 py-1 rounded-full"
+                    style={SENTIMENT[visit.debriefs.community_sentiment]}>
+                    {SENTIMENT[visit.debriefs.community_sentiment].label}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
-
-              {/* Summary */}
-              <div>
-                <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Summary</p>
-                <p className="text-sm text-slate-700 leading-relaxed">{visit.debriefs.summary}</p>
+            {/* Findings */}
+            {visit.debriefs.key_findings.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
+                <SectionLabel>Key Findings</SectionLabel>
+                <ul className="space-y-2">
+                  {visit.debriefs.key_findings.map((f, i) => (
+                    <li key={i} className="text-sm flex gap-2.5 items-start" style={{ color: '#1E2A22' }}>
+                      <span className="mt-0.5 shrink-0" style={{ color: '#B5521B' }}>·</span>{f}
+                    </li>
+                  ))}
+                </ul>
               </div>
+            )}
 
-              {/* Sentiment */}
-              <div className="flex items-center gap-2">
-                <span className={`text-xs px-3 py-1 rounded-full font-medium ${sentimentConfig[visit.debriefs.community_sentiment].color}`}>
-                  {sentimentConfig[visit.debriefs.community_sentiment].icon} {visit.debriefs.community_sentiment} sentiment
-                </span>
+            {/* Blockers */}
+            {visit.debriefs.blockers.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: '#FEF2F2', border: '1px solid #FECACA' }}>
+                <SectionLabel>Blockers</SectionLabel>
+                <ul className="space-y-2">
+                  {visit.debriefs.blockers.map((b, i) => (
+                    <li key={i} className="text-sm flex gap-2.5 items-start" style={{ color: '#7F1D1D' }}>
+                      <span className="mt-0.5 shrink-0">✕</span>{b}
+                    </li>
+                  ))}
+                </ul>
               </div>
+            )}
 
-              {/* Key findings */}
-              {visit.debriefs.key_findings.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Key Findings</p>
-                  <ul className="space-y-1.5">
-                    {visit.debriefs.key_findings.map((f, i) => (
-                      <li key={i} className="text-sm text-slate-700 flex gap-2.5 items-start">
-                        <span className="text-blue-400 mt-0.5 shrink-0">•</span>{f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+            {/* Follow-ups */}
+            {visit.debriefs.follow_ups.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
+                <SectionLabel>Follow-ups</SectionLabel>
+                <ul className="space-y-2">
+                  {visit.debriefs.follow_ups.map((f, i) => (
+                    <li key={i} className="text-sm flex gap-2.5 items-start" style={{ color: '#1E2A22' }}>
+                      <span className="mt-0.5 shrink-0" style={{ color: '#2D4A3E' }}>→</span>{f}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
-              {/* Blockers */}
-              {visit.debriefs.blockers.length > 0 && (
-                <div className="bg-red-50 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-red-600 uppercase tracking-wide mb-2">Blockers</p>
-                  <ul className="space-y-1.5">
-                    {visit.debriefs.blockers.map((b, i) => (
-                      <li key={i} className="text-sm text-red-700 flex gap-2.5 items-start">
-                        <span className="mt-0.5 shrink-0">✕</span>{b}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Follow-ups */}
-              {visit.debriefs.follow_ups.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Follow-ups</p>
-                  <ul className="space-y-1.5">
-                    {visit.debriefs.follow_ups.map((f, i) => (
-                      <li key={i} className="text-sm text-slate-700 flex gap-2.5 items-start">
-                        <span className="text-yellow-500 mt-0.5 shrink-0">→</span>{f}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Recurring issues */}
-              {visit.debriefs.recurring_issues.length > 0 && (
-                <div className="bg-orange-50 rounded-lg p-4">
-                  <p className="text-xs font-semibold text-orange-600 uppercase tracking-wide mb-2">Recurring Issues</p>
-                  <ul className="space-y-1.5">
-                    {visit.debriefs.recurring_issues.map((r, i) => (
-                      <li key={i} className="text-sm text-orange-700 flex gap-2.5 items-start">
-                        <span className="mt-0.5 shrink-0">⚠</span>{r}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
+            {/* Recurring issues */}
+            {visit.debriefs.recurring_issues.length > 0 && (
+              <div className="rounded-2xl p-5" style={{ background: '#FFFBEB', border: '1px solid #FDE68A' }}>
+                <SectionLabel>Recurring Issues</SectionLabel>
+                <ul className="space-y-2">
+                  {visit.debriefs.recurring_issues.map((r, i) => (
+                    <li key={i} className="text-sm flex gap-2.5 items-start" style={{ color: '#78350F' }}>
+                      <span className="mt-0.5 shrink-0">⚠</span>{r}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Officer note */}
-            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-3">
-              <h2 className="font-semibold text-slate-800">Your Note</h2>
+            <div className="rounded-2xl p-5 space-y-3" style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
+              <SectionLabel>Your Note</SectionLabel>
               {visit.debriefs.officer_note && (
-                <div className="bg-slate-50 rounded-lg p-3 border border-slate-100">
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{visit.debriefs.officer_note}</p>
+                <div className="rounded-xl p-3" style={{ background: '#F5F0E8', border: '1px solid #DDD6C8' }}>
+                  <p className="text-sm whitespace-pre-wrap" style={{ color: '#4A3728' }}>{visit.debriefs.officer_note}</p>
                 </div>
               )}
-              {noteSaved && (
-                <div className="flex items-center gap-2 text-green-600 text-sm">
-                  <span>✓</span> Note saved
-                </div>
-              )}
-              <textarea
-                value={note}
-                onChange={e => setNote(e.target.value)}
-                rows={3}
-                placeholder="Add a note to this debrief..."
-                aria-label="Add officer note"
-                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-              />
-              <button
-                onClick={handleNoteSubmit}
-                disabled={savingNote || !note.trim()}
-                className="bg-slate-800 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-slate-700 disabled:opacity-50 transition-colors"
-              >
-                {savingNote ? 'Saving...' : 'Add Note'}
+              <textarea value={note} onChange={e => setNote(e.target.value)} rows={3}
+                placeholder="Add a note to this debrief…"
+                style={{
+                  width: '100%', border: '1px solid #DDD6C8', borderRadius: '0.75rem',
+                  padding: '0.625rem 0.75rem', fontSize: '0.875rem', background: '#FDFAF5',
+                  color: '#1E2A22', resize: 'none', outline: 'none',
+                }} />
+              <button onClick={handleNoteSubmit} disabled={savingNote || !note.trim()}
+                className="rounded-xl px-4 py-2 text-sm font-medium transition-colors"
+                style={{ background: '#2D4A3E', color: '#FDFAF5', opacity: (savingNote || !note.trim()) ? 0.5 : 1 }}>
+                {savingNote ? 'Saving…' : 'Add note'}
               </button>
             </div>
           </>
         )}
 
         <div className="pt-2">
-          <a href="/visits" className="text-sm text-blue-600 hover:underline">← Back to My Visits</a>
+          <a href="/visits" className="text-sm font-medium transition-colors" style={{ color: '#B5521B' }}>
+            ← Back to My Visits
+          </a>
         </div>
       </div>
     </div>
