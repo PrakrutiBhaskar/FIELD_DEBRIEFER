@@ -18,11 +18,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -49,72 +44,43 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* Brand palette — The/Nudge Foundation */
+  --nudge-cream:      #F5F0E8;
+  --nudge-cream-dark: #EDE7D9;
+  --nudge-terracotta: #B5521B;
+  --nudge-terra-light:#FAE8DF;
+  --nudge-teal:       #2D4A3E;
+  --nudge-teal-light: #E2EDE9;
+  --nudge-ink:        #1E2A22;
+  --nudge-muted:      #6B7C74;
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #F5F0E8;
+  --foreground: #1E2A22;
+  --card: #FDFAF5;
+  --card-foreground: #1E2A22;
+  --popover: #FDFAF5;
+  --popover-foreground: #1E2A22;
+  --primary: #B5521B;
+  --primary-foreground: #FDFAF5;
+  --secondary: #EDE7D9;
+  --secondary-foreground: #1E2A22;
+  --muted: #EDE7D9;
+  --muted-foreground: #6B7C74;
+  --accent: #2D4A3E;
+  --accent-foreground: #FDFAF5;
+  --destructive: #C0392B;
+  --border: #DDD6C8;
+  --input: #DDD6C8;
+  --ring: #B5521B;
+  --radius: 0.75rem;
+  --sidebar: #FDFAF5;
+  --sidebar-foreground: #1E2A22;
+  --sidebar-primary: #B5521B;
+  --sidebar-primary-foreground: #FDFAF5;
+  --sidebar-accent: #EDE7D9;
+  --sidebar-accent-foreground: #1E2A22;
+  --sidebar-border: #DDD6C8;
+  --sidebar-ring: #B5521B;
 }
 
 @layer base {
@@ -128,3 +94,59 @@
     @apply font-sans;
   }
 }
+
+/* Nudge brand utility classes */
+.btn-primary {
+  background-color: var(--nudge-terracotta);
+  color: #FDFAF5;
+  border-radius: var(--radius);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+.btn-primary:hover { background-color: #9A4416; }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btn-teal {
+  background-color: var(--nudge-teal);
+  color: #FDFAF5;
+  border-radius: var(--radius);
+  padding: 0.625rem 1.25rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background-color 0.15s ease;
+}
+.btn-teal:hover { background-color: #223B31; }
+
+.card-nudge {
+  background: var(--card);
+  border: 1px solid var(--nudge-cream-dark);
+  border-radius: var(--radius-xl);
+}
+
+.input-nudge {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  background: #FDFAF5;
+  color: var(--nudge-ink);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.input-nudge:focus {
+  outline: none;
+  border-color: var(--nudge-terracotta);
+  box-shadow: 0 0 0 3px rgba(181, 82, 27, 0.12);
+}
+
+.badge-routine    { background: #E2EDE9; color: #2D4A3E; }
+.badge-attention  { background: #FEF3C7; color: #92400E; }
+.badge-escalate   { background: #FEE2E2; color: #991B1B; }
+.badge-positive   { background: #DCFCE7; color: #166534; }
+.badge-mixed      { background: #FEF9C3; color: #713F12; }
+.badge-negative   { background: #FEE2E2; color: #991B1B; }
+.badge-officer    { background: #EDE7D9; color: #4A3728; }
+.badge-manager    { background: #E2EDE9; color: #2D4A3E; }
+.badge-admin      { background: #FAE8DF; color: #B5521B; }
