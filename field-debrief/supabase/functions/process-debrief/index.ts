@@ -116,6 +116,92 @@ async function callGroq(prompt: string): Promise<string> {
   return data.choices?.[0]?.message?.content || ''
 }
 
+async function sendEscalateEmail(
+  managerEmail: string,
+  managerName: string,
+  officerName: string,
+  locationName: string,
+  visitDate: string,
+  summary: string,
+  blockers: string[],
+  visitId: string
+) {
+  const resendKey = Deno.env.get('RESEND_API_KEY')!
+  const fromEmail = Deno.env.get('RESEND_FROM_EMAIL') || 'onboarding@resend.dev'
+
+  const html = `
+    <div style="font-family: Inter, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; background: #F5F0E8; padding: 32px;">
+      <div style="background: white; border-radius: 14px; padding: 32px; border: 1px solid #E2DDD6;">
+        
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 24px;">
+          <div style="background: #FEE2E2; border-radius: 8px; padding: 8px 14px;">
+            <span style="color: #991B1B; font-size: 13px; font-weight: 600;">⚠ ESCALATE FLAG</span>
+          </div>
+        </div>
+
+        <h1 style="font-size: 20px; font-weight: 600; color: #1C1917; margin: 0 0 8px;">
+          Visit requires immediate attention
+        </h1>
+        <p style="color: #57534E; font-size: 14px; margin: 0 0 24px;">
+          ${officerName} submitted a field visit flagged for escalation.
+        </p>
+
+        <div style="background: #F5F0E8; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="color: #A8A29E; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 4px;">Location</td>
+              <td style="color: #1C1917; font-size: 14px; font-weight: 500; text-align: right;">${locationName}</td>
+            </tr>
+            <tr>
+              <td style="color: #A8A29E; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 4px; padding-top: 8px;">Visit Date</td>
+              <td style="color: #1C1917; font-size: 14px; font-weight: 500; text-align: right;">${visitDate}</td>
+            </tr>
+            <tr>
+              <td style="color: #A8A29E; font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; padding-top: 8px;">Officer</td>
+              <td style="color: #1C1917; font-size: 14px; font-weight: 500; text-align: right;">${officerName}</td>
+            </tr>
+          </table>
+        </div>
+
+        <div style="margin-bottom: 20px;">
+          <p style="color: #A8A29E; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 8px;">AI Summary</p>
+          <p style="color: #1C1917; font-size: 14px; line-height: 1.6; margin: 0;">${summary}</p>
+        </div>
+
+        ${blockers.length > 0 ? `
+        <div style="background: #FEE2E2; border-radius: 10px; padding: 16px; margin-bottom: 24px;">
+          <p style="color: #991B1B; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 10px;">Blockers</p>
+          ${blockers.map(b => `<p style="color: #7F1D1D; font-size: 14px; margin: 0 0 6px;">• ${b}</p>`).join('')}
+        </div>
+        ` : ''}
+
+        <a href="https://field-debriefer.vercel.app/visits/${visitId}"
+          style="display: inline-block; background: #C2603A; color: white; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-size: 14px; font-weight: 500;">
+          View Full Debrief →
+        </a>
+
+        <p style="color: #A8A29E; font-size: 12px; margin: 24px 0 0;">
+          Field Debrief Tool · The/Nudge Foundation
+        </p>
+      </div>
+    </div>
+  `
+
+  await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${resendKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: fromEmail,
+      to: [managerEmail],
+      subject: `⚠ Escalate Flag: ${locationName} visit by ${officerName}`,
+      html,
+    }),
+  })
+}
+
 Deno.serve(async (req) => {
   // Verify webhook secret
   const incomingSecret = req.headers.get('x-webhook-secret')
@@ -263,6 +349,56 @@ Deno.serve(async (req) => {
       method: 'PATCH',
       body: JSON.stringify({ debrief_status: 'done' }),
     })
+
+    // Send escalate email notification
+    if (cleanDebrief.nudge_flag === 'Escalate') {
+      try {
+        const officerProfiles = await supabaseFetch(
+          `profiles?id=eq.${visit.officer_id}&select=full_name,region&limit=1`
+        )
+        const officer = officerProfiles[0]
+
+        // Find manager for region, fall back to all admins
+        let recipients = []
+        if (officer?.region) {
+          recipients = await supabaseFetch(
+            `profiles?role=eq.manager&region=eq.${encodeURIComponent(officer.region)}&is_active=eq.true&select=id,full_name&limit=5`
+          )
+        }
+        if (recipients.length === 0) {
+          recipients = await supabaseFetch(
+            `profiles?role=eq.admin&is_active=eq.true&select=id,full_name&limit=5`
+          )
+        }
+
+        // Get emails for recipients
+        const authRes = await fetch(`${supabaseUrl}/auth/v1/admin/users`, {
+          headers: {
+            'apikey': serviceRoleKey,
+            'Authorization': `Bearer ${serviceRoleKey}`,
+          },
+        })
+        const authData = await authRes.json()
+
+        for (const recipient of recipients) {
+          const userAuth = authData.users?.find((u: { id: string; email: string }) => u.id === recipient.id)
+          if (userAuth?.email) {
+            await sendEscalateEmail(
+              userAuth.email,
+              recipient.full_name,
+              officer?.full_name || 'Unknown officer',
+              visit.locations?.name || 'Unknown',
+              visit.visit_date,
+              cleanDebrief.summary,
+              cleanDebrief.blockers,
+              visitId
+            )
+          }
+        }
+      } catch (emailErr) {
+        console.error('Escalate email error:', emailErr)
+      }
+    }
 
     return new Response('ok', { status: 200 })
 
