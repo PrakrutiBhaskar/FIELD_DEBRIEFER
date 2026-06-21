@@ -20,14 +20,21 @@ const roleColor: Record<string, string> = {
 export default function AdminPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
   const [editForm, setEditForm] = useState({ role: '', region: '' })
 
   const fetchUsers = async () => {
-    const res = await fetch('/api/v1/admin/users')
-    const data = await res.json()
-    setUsers(data.users || [])
-    setLoading(false)
+    try {
+      const res = await fetch('/api/v1/admin/users')
+      if (!res.ok) throw new Error('Failed to fetch')
+      const data = await res.json()
+      setUsers(data.users || [])
+    } catch {
+      setFetchError('Failed to load users. Please refresh.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => { fetchUsers() }, [])
@@ -38,22 +45,30 @@ export default function AdminPage() {
   }
 
   const saveEdit = async (userId: string) => {
-    await fetch(`/api/v1/admin/users/${userId}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
-    })
-    setEditing(null)
-    await fetchUsers()
+    try {
+      await fetch(`/api/v1/admin/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+      setEditing(null)
+      await fetchUsers()
+    } catch {
+      setFetchError('Failed to save changes. Please try again.')
+    }
   }
 
   const toggleActive = async (user: User) => {
-    await fetch(`/api/v1/admin/users/${user.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ is_active: !user.is_active }),
-    })
-    await fetchUsers()
+    try {
+      await fetch(`/api/v1/admin/users/${user.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !user.is_active }),
+      })
+      await fetchUsers()
+    } catch {
+      setFetchError('Failed to update user. Please try again.')
+    }
   }
 
   return (
@@ -63,6 +78,12 @@ export default function AdminPage() {
           <h1 className="text-2xl font-bold text-slate-800">Admin Panel</h1>
           <p className="text-slate-500 text-sm mt-1">{users.length} users</p>
         </div>
+
+        {fetchError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
+            {fetchError}
+          </div>
+        )}
 
         {loading && (
           <p className="text-slate-400 text-sm text-center py-12">Loading...</p>

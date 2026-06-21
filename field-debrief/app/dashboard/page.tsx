@@ -36,6 +36,7 @@ export default function ManagerDashboard() {
   const [selected, setSelected] = useState<string[]>([])
   const [report, setReport] = useState('')
   const [generatingReport, setGeneratingReport] = useState(false)
+  const [fetchError, setFetchError] = useState('')
 
   // Filters
   const [filterFlag, setFilterFlag] = useState('')
@@ -43,11 +44,16 @@ export default function ManagerDashboard() {
 
   useEffect(() => {
     fetch('/api/v1/visits?page_size=50')
-      .then(r => r.json())
-      .then(d => {
-        setVisits(d.visits || [])
-        setLoading(false)
-      })
+  .then(r => r.json())
+  .then(d => {
+    setVisits(d.visits || [])
+    setLoading(false)
+  })
+  .catch(() => {
+    setFetchError('Failed to load visits. Please refresh.')
+    
+    setLoading(false)
+  })
   }, [])
 
   const filtered = visits.filter(v => {
@@ -127,6 +133,12 @@ export default function ManagerDashboard() {
             </button>
           )}
         </div>
+
+        {fetchError && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700 mb-4">
+            {fetchError}
+          </div>
+        )}
 
         {/* Pattern Report */}
         {report && (

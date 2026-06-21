@@ -118,6 +118,11 @@ Deno.serve(async (req) => {
     const payload = await req.json()
     visitId = payload.record?.id
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!visitId || !UUID_REGEX.test(visitId)) {
+      return new Response('Invalid visit ID', { status: 400 })
+    }
+
     if (!visitId) return new Response('No visit ID', { status: 400 })
 
     // 1. Fetch visit

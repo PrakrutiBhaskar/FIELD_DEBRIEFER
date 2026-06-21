@@ -30,7 +30,7 @@ export default function Navbar() {
 
   const handleSignOut = async () => {
     const supabase = createClient()
-    await supabase.auth.signOut()
+    await supabase.auth.signOut({ scope: 'global' })
     router.push('/login')
   }
 
