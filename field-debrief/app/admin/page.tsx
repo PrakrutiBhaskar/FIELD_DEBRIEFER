@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SkeletonPage } from '@/components/skeleton'
 
 type User = {
   id: string
@@ -85,9 +86,7 @@ export default function AdminPage() {
           </div>
         )}
 
-        {loading && (
-          <p className="text-slate-400 text-sm text-center py-12">Loading...</p>
-        )}
+        {loading && <SkeletonPage />}
 
         <div className="space-y-3">
           {users.map(user => (
