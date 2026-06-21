@@ -1,15 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
-export default async function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>
+}) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) redirect('/visits')
+  const { data: { session } } = await supabase.auth.getSession()
+  if (session) redirect('/visits')
+
+  const { error } = await searchParams
 
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: '#F5F0E8' }}>
       <div className="w-full max-w-sm px-4">
-        {/* Logo mark */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
             style={{ background: '#B5521B' }}>
@@ -25,15 +30,23 @@ export default async function LoginPage() {
         </div>
 
         <div className="rounded-2xl p-6 shadow-sm" style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
+          {error && (
+            <div className="rounded-xl px-4 py-3 text-sm mb-4"
+              style={{ background: '#FEE2E2', color: '#991B1B', border: '1px solid #FECACA' }}>
+              {error === 'oauth_failed'
+                ? 'Sign-in failed. Please try again.'
+                : 'An error occurred. Please try again.'}
+            </div>
+          )}
+
           <p className="text-sm mb-5 text-center" style={{ color: '#6B7C74' }}>
             Use your The/Nudge Foundation email to sign in
           </p>
+
           <form action="/auth/login" method="POST">
             <button type="submit"
               className="w-full flex items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all"
               style={{ background: '#FDFAF5', border: '1px solid #DDD6C8', color: '#1E2A22' }}
-              onMouseOver={e => (e.currentTarget.style.background = '#F5F0E8')}
-              onMouseOut={e => (e.currentTarget.style.background = '#FDFAF5')}
             >
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/>
