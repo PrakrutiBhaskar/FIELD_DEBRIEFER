@@ -26,20 +26,21 @@ export async function POST(request: NextRequest) {
   }
 
   const { data, error } = await supabase
-    .from('visits')
-    .insert({
-      officer_id:       user.id,
-      location_id,
-      visit_date,
-      program_area,
-      stakeholders:     stakeholders || [],
-      duration_mins,
-      text_notes,
-      voice_memo_path:  body.voice_memo_path || null,
-      debrief_status:   'pending',
-    })
-    .select('id')
-    .single()
+  .from('visits')
+  .insert({
+    officer_id:       user.id,
+    location_id,
+    visit_date,
+    program_area,
+    stakeholders:     stakeholders || [],
+    duration_mins,
+    text_notes,
+    voice_memo_path:  body.voice_memo_path || null,
+    photo_paths:      Array.isArray(body.photo_paths) ? body.photo_paths.slice(0, 10) : [],
+    debrief_status:   'pending',
+  })
+  .select('id')
+  .single()
 
   if (error) {
   console.error('DB error:', error.message)
