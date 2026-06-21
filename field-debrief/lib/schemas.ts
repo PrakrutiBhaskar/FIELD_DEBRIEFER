@@ -14,9 +14,9 @@ export const visitSubmitSchema = z.object({
     message: 'Visit date cannot be in the future',
   }),
   program_area:  z.enum(PROGRAM_AREAS, { message: 'Please select a program area' }),
-  stakeholders:  z.array(z.string()).optional(),
+  stakeholders:  z.array(z.string().max(200)).max(20).optional(),
   duration_mins: z.coerce.number().positive().optional(),
-  text_notes:    z.string().optional(),
+  text_notes:    z.string().max(10000).optional(),
 })
 
 export const debriefOutputSchema = z.object({

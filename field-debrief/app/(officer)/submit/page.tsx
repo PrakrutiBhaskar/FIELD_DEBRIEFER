@@ -125,16 +125,17 @@ const stopRecording = () => {
       let voice_memo_path = null
 
       // Upload voice memo if present
+      // Upload voice memo via secure server route
       if (voiceFile) {
-        const { createClient } = await import('@/lib/supabase/client')
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        const path = `${user!.id}/${Date.now()}.${voiceFile.name.split('.').pop()}`
-        const { error: uploadError } = await supabase.storage
-          .from('voice-memos')
-          .upload(path, voiceFile)
-        if (uploadError) throw new Error('Voice upload failed')
-        voice_memo_path = path
+        const uploadFormData = new FormData()
+        uploadFormData.append('file', voiceFile)
+        const uploadRes = await fetch('/api/v1/upload', {
+          method: 'POST',
+          body: uploadFormData,
+        })
+        const uploadData = await uploadRes.json()
+        if (!uploadRes.ok) throw new Error(uploadData.error || 'Voice upload failed')
+        voice_memo_path = uploadData.path
       }
 
       const res = await fetch('/api/v1/visits', {
