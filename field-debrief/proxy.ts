@@ -26,7 +26,7 @@ const limiters = {
   }),
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const ip = request.headers.get('x-forwarded-for')?.split(',')[0] || 'anonymous'
   const pathname = request.nextUrl.pathname
 
