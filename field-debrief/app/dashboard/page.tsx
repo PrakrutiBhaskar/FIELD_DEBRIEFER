@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { SkeletonPage } from '@/components/skeleton'
 
 type Visit = {
   id: string
@@ -156,9 +157,7 @@ export default function ManagerDashboard() {
           </div>
         )}
 
-        {loading && (
-          <p className="text-slate-400 text-sm text-center py-12">Loading...</p>
-        )}
+        {loading && <SkeletonPage />}
 
         {/* Visit list */}
         <div className="space-y-3">

@@ -16,17 +16,28 @@ export default function Navbar() {
   const [profile, setProfile] = useState<Profile | null>(null)
 
   useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase
-        .from('profiles')
-        .select('full_name, role')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }) => setProfile(data))
-    })
-  }, [])
+  const cached = sessionStorage.getItem('user_profile')
+  if (cached) {
+    setProfile(JSON.parse(cached))
+    return
+  }
+
+  const supabase = createClient()
+  supabase.auth.getUser().then(({ data: { user } }) => {
+    if (!user) return
+    supabase
+      .from('profiles')
+      .select('full_name, role')
+      .eq('id', user.id)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setProfile(data)
+          sessionStorage.setItem('user_profile', JSON.stringify(data))
+        }
+      })
+  })
+}, [])
 
   const handleSignOut = async () => {
     const supabase = createClient()
