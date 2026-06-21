@@ -28,12 +28,15 @@ export default function SubmitVisitPage() {
   const [recordingTime, setRecordingTime] = useState(0)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const chunksRef = useRef<Blob[]>([])
+  const photoInputRef = useRef<HTMLInputElement | null>(null)
 
   const [form, setForm] = useState({
     location_id: '', visit_date: new Date().toISOString().split('T')[0],
     program_area: '', stakeholders: '', duration_mins: '', text_notes: '',
   })
   const [voiceFile, setVoiceFile] = useState<File | null>(null)
+  const [photos, setPhotos] = useState<File[]>([])
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
 
   useEffect(() => {
     const saved = sessionStorage.getItem('visit_form_draft')
@@ -50,8 +53,35 @@ export default function SubmitVisitPage() {
     })
   }, [])
 
+  // Revoke object URLs on unmount
+  useEffect(() => {
+    return () => { photoPreviews.forEach(url => URL.revokeObjectURL(url)) }
+  }, [photoPreviews])
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    const total = photos.length + files.length
+    if (total > 5) { setError('Maximum 5 photos allowed'); return }
+
+    const oversized = files.find(f => f.size > 5 * 1024 * 1024)
+    if (oversized) { setError('Each photo must be under 5MB'); return }
+
+    const newPreviews = files.map(f => URL.createObjectURL(f))
+    setPhotos(prev => [...prev, ...files])
+    setPhotoPreviews(prev => [...prev, ...newPreviews])
+    setError('')
+    // reset input so same file can be re-added after removal
+    e.target.value = ''
+  }
+
+  const removePhoto = (index: number) => {
+    URL.revokeObjectURL(photoPreviews[index])
+    setPhotos(prev => prev.filter((_, i) => i !== index))
+    setPhotoPreviews(prev => prev.filter((_, i) => i !== index))
   }
 
   const startRecording = async () => {
@@ -99,6 +129,18 @@ export default function SubmitVisitPage() {
         if (!ur.ok) throw new Error(ud.error || 'Voice upload failed')
         voice_memo_path = ud.path
       }
+
+      // Upload photos
+      const photo_paths: string[] = []
+      for (const photo of photos) {
+        const fd = new FormData()
+        fd.append('file', photo)
+        const ur = await fetch('/api/v1/upload', { method: 'POST', body: fd })
+        const ud = await ur.json()
+        if (!ur.ok) throw new Error(ud.error || 'Photo upload failed')
+        photo_paths.push(ud.path)
+      }
+
       const res = await fetch('/api/v1/visits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,6 +149,7 @@ export default function SubmitVisitPage() {
           duration_mins: form.duration_mins ? Number(form.duration_mins) : undefined,
           stakeholders: form.stakeholders ? form.stakeholders.split(',').map(s => s.trim()).filter(Boolean) : [],
           voice_memo_path,
+          photo_paths: photo_paths.length > 0 ? photo_paths : undefined,
         }),
       })
       const data = await res.json()
@@ -136,7 +179,6 @@ export default function SubmitVisitPage() {
         <form onSubmit={handleSubmit} className="rounded-2xl p-6 space-y-5"
           style={{ background: '#FDFAF5', border: '1px solid #DDD6C8' }}>
 
-          {/* Location + Date row */}
           <div>
             <Label required>Location</Label>
             <select name="location_id" value={form.location_id} onChange={handleChange} required style={inputStyle}>
@@ -222,6 +264,74 @@ export default function SubmitVisitPage() {
                 }}
                 className="mt-2 w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-medium"
                 style={{ color: '#6B7C74' }} />
+            </div>
+          </div>
+
+          {/* Photos */}
+          <div>
+            <Label>Photos <span className="font-normal" style={{ color: '#6B7C74' }}>(up to 5, max 5MB each)</span></Label>
+            <div className="rounded-xl p-4" style={{ background: '#F0F4F2', border: '1px solid #C8D9D3' }}>
+
+              {/* Previews grid */}
+              {photoPreviews.length > 0 && (
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {photoPreviews.map((src, i) => (
+                    <div key={i} className="relative rounded-lg overflow-hidden"
+                      style={{ aspectRatio: '1', background: '#DDD6C8' }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`Photo ${i + 1}`}
+                        className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => removePhoto(i)}
+                        className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold"
+                        style={{ background: 'rgba(0,0,0,0.55)', color: 'white', lineHeight: 1 }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+
+                  {/* Add more tile */}
+                  {photos.length < 5 && (
+                    <button type="button" onClick={() => photoInputRef.current?.click()}
+                      className="rounded-lg flex flex-col items-center justify-center gap-1 transition-colors"
+                      style={{ aspectRatio: '1', border: '1.5px dashed #8FAF9F', background: 'transparent' }}>
+                      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                        <path d="M10 4V16M4 10H16" stroke="#2D4A3E" strokeWidth="1.5" strokeLinecap="round"/>
+                      </svg>
+                      <span className="text-xs" style={{ color: '#2D4A3E' }}>Add</span>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Empty state — tap to pick */}
+              {photoPreviews.length === 0 && (
+                <button type="button" onClick={() => photoInputRef.current?.click()}
+                  className="w-full flex flex-col items-center justify-center gap-2 rounded-lg py-6 transition-colors"
+                  style={{ border: '1.5px dashed #8FAF9F', background: 'transparent' }}>
+                  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <rect x="2" y="6" width="24" height="18" rx="3" stroke="#2D4A3E" strokeWidth="1.5"/>
+                    <circle cx="14" cy="15" r="4" stroke="#2D4A3E" strokeWidth="1.5"/>
+                    <path d="M9 6L10.5 3H17.5L19 6" stroke="#2D4A3E" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                  <span className="text-sm font-medium" style={{ color: '#2D4A3E' }}>Tap to add photos</span>
+                  <span className="text-xs" style={{ color: '#6B7C74' }}>JPG, PNG or HEIC</span>
+                </button>
+              )}
+
+              <input
+                ref={photoInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/heic,image/webp"
+                multiple
+                onChange={handlePhotoChange}
+                className="hidden"
+              />
+
+              {photos.length > 0 && (
+                <p className="text-xs mt-2" style={{ color: '#6B7C74' }}>
+                  {photos.length} / 5 photo{photos.length !== 1 ? 's' : ''} added
+                </p>
+              )}
             </div>
           </div>
 

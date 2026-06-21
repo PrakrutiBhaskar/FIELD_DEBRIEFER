@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useEffect, useState } from 'react'
 
@@ -12,7 +12,6 @@ type Profile = {
 
 export default function Navbar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -30,10 +29,10 @@ export default function Navbar() {
   }, [])
 
   const handleSignOut = async () => {
-    sessionStorage.removeItem('user_profile')
+    sessionStorage.clear()
     const supabase = createClient()
     await supabase.auth.signOut({ scope: 'global' })
-    router.push('/login')
+    window.location.href = '/login'
   }
 
   if (pathname.startsWith('/login') || pathname.startsWith('/auth')) return null
