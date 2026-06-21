@@ -34,6 +34,9 @@ export default function Navbar() {
     router.push('/login')
   }
 
+  // Hide navbar on login and auth pages
+  if (pathname.startsWith('/login') || pathname.startsWith('/auth')) return null
+
   const navLinks = [
     { href: '/visits', label: 'My Visits', roles: ['officer', 'manager', 'admin'] },
     { href: '/submit', label: 'Submit Visit', roles: ['officer', 'manager', 'admin'] },
@@ -64,17 +67,17 @@ export default function Navbar() {
               ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {profile && (
+        {profile && (
+          <div className="flex items-center gap-3">
             <span className="text-xs text-slate-400">{profile.full_name} · {profile.role}</span>
-          )}
-          <button
-            onClick={handleSignOut}
-            className="text-xs text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            Sign out
-          </button>
-        </div>
+            <button
+              onClick={handleSignOut}
+              className="text-xs text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </nav>
   )
