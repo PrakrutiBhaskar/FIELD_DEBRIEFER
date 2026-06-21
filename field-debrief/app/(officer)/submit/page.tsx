@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { PROGRAM_AREAS } from '@/lib/schemas'
+import { toast } from '@/components/toast'
 
 type Location = { id: string; name: string; district: string }
 
@@ -38,10 +39,19 @@ export default function SubmitVisitPage() {
   }, [form])
 
   useEffect(() => {
-    fetch('/api/v1/locations')
-      .then(r => r.json())
-      .then(d => setLocations(d.locations || []))
-  }, [])
+  const cached = sessionStorage.getItem('locations_cache')
+  if (cached) {
+    setLocations(JSON.parse(cached))
+    return
+  }
+  fetch('/api/v1/locations')
+    .then(r => r.json())
+    .then(d => {
+      const locs = d.locations || []
+      setLocations(locs)
+      sessionStorage.setItem('locations_cache', JSON.stringify(locs))
+    })
+}, [])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
@@ -150,6 +160,8 @@ export default function SubmitVisitPage() {
       if (!res.ok) throw new Error(data.error?.message || 'Submission failed')
 
       sessionStorage.removeItem('visit_form_draft')
+toast('Visit submitted — debrief generating...')
+router.push(`/visits/${data.visit_id}`)
       router.push(`/visits/${data.visit_id}`)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Something went wrong')

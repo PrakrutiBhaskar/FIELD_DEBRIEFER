@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { SkeletonPage } from '@/components/skeleton'
+import { toast } from '@/components/toast'
 
 type Visit = {
   id: string
@@ -70,18 +71,26 @@ export default function ManagerDashboard() {
   }
 
   const generateReport = async () => {
-    if (selected.length < 3) return
-    setGeneratingReport(true)
-    setReport('')
-    const res = await fetch('/api/v1/pattern', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visit_ids: selected }),
-    })
-    const data = await res.json()
-    setReport(data.report || 'Could not generate report.')
-    setGeneratingReport(false)
+  if (selected.length < 3) {
+    toast('Select at least 3 visits to generate a report', 'info')
+    return
   }
+  setGeneratingReport(true)
+  setReport('')
+  const res = await fetch('/api/v1/pattern', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visit_ids: selected }),
+  })
+  const data = await res.json()
+  if (res.ok) {
+    setReport(data.report || '')
+    toast('Pattern report generated')
+  } else {
+    toast('Failed to generate report', 'error')
+  }
+  setGeneratingReport(false)
+}
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4">

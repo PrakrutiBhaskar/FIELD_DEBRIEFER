@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { SkeletonPage } from '@/components/skeleton'
+import { toast } from '@/components/toast'
 
 type User = {
   id: string
@@ -46,31 +47,42 @@ export default function AdminPage() {
   }
 
   const saveEdit = async (userId: string) => {
-    try {
-      await fetch(`/api/v1/admin/users/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editForm),
-      })
+  try {
+    const res = await fetch(`/api/v1/admin/users/${userId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(editForm),
+    })
+    if (res.ok) {
+      toast('User updated successfully')
       setEditing(null)
       await fetchUsers()
-    } catch {
-      setFetchError('Failed to save changes. Please try again.')
+    } else {
+      const data = await res.json()
+      toast(data.message || 'Failed to update user', 'error')
     }
+  } catch {
+    toast('Failed to save changes', 'error')
   }
+}
 
   const toggleActive = async (user: User) => {
-    try {
-      await fetch(`/api/v1/admin/users/${user.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !user.is_active }),
-      })
+  try {
+    const res = await fetch(`/api/v1/admin/users/${user.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_active: !user.is_active }),
+    })
+    if (res.ok) {
+      toast(user.is_active ? 'User deactivated' : 'User activated')
       await fetchUsers()
-    } catch {
-      setFetchError('Failed to update user. Please try again.')
+    } else {
+      toast('Failed to update user', 'error')
     }
+  } catch {
+    toast('Failed to update user', 'error')
   }
+}
 
   return (
     <div className="min-h-screen bg-slate-50 py-8 px-4">
