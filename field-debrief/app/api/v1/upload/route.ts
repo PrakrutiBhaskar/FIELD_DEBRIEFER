@@ -1,14 +1,20 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
-const ALLOWED_TYPES: Record<string, string> = {
-  'audio/mpeg': 'mp3',
-  'audio/mp3':  'mp3',
-  'audio/wav':  'wav',
-  'audio/webm': 'webm',
+const ALLOWED_TYPES: Record<string, { ext: string; bucket: string }> = {
+  'audio/mpeg':  { ext: 'mp3',  bucket: 'voice-memos' },
+  'audio/mp3':   { ext: 'mp3',  bucket: 'voice-memos' },
+  'audio/wav':   { ext: 'wav',  bucket: 'voice-memos' },
+  'audio/webm':  { ext: 'webm', bucket: 'voice-memos' },
+  'image/jpeg':  { ext: 'jpg',  bucket: 'visit-photos' },
+  'image/jpg':   { ext: 'jpg',  bucket: 'visit-photos' },
+  'image/png':   { ext: 'png',  bucket: 'visit-photos' },
+  'image/webp':  { ext: 'webp', bucket: 'visit-photos' },
+  'image/heic':  { ext: 'heic', bucket: 'visit-photos' },
 }
 
-const MAX_SIZE = 10 * 1024 * 1024 // 10MB
+const MAX_AUDIO = 10 * 1024 * 1024  // 10MB
+const MAX_IMAGE =  5 * 1024 * 1024  //  5MB
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -21,33 +27,31 @@ export async function POST(request: NextRequest) {
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
 
-  // Server-side MIME type validation
-  const ext = ALLOWED_TYPES[file.type]
-  if (!ext) {
+  const typeConfig = ALLOWED_TYPES[file.type]
+  if (!typeConfig) {
     return NextResponse.json({
-      error: 'Invalid file type. Only MP3, WAV, and WebM audio files are allowed.'
+      error: 'Invalid file type. Allowed: MP3, WAV, WebM, JPG, PNG, WebP, HEIC.'
     }, { status: 400 })
   }
 
-  // Server-side size validation
-  if (file.size > MAX_SIZE) {
+  const maxSize = typeConfig.bucket === 'voice-memos' ? MAX_AUDIO : MAX_IMAGE
+  if (file.size > maxSize) {
     return NextResponse.json({
-      error: 'File too large. Maximum size is 10MB.'
+      error: `File too large. Max size: ${maxSize / 1024 / 1024}MB.`
     }, { status: 400 })
   }
 
-  // Safe path — extension derived from validated MIME type, never from filename
-  const path = `${user.id}/${crypto.randomUUID()}.${ext}`
-
+  const path = `${user.id}/${crypto.randomUUID()}.${typeConfig.ext}`
   const buffer = await file.arrayBuffer()
 
   const { error: uploadError } = await supabase.storage
-    .from('voice-memos')
+    .from(typeConfig.bucket)
     .upload(path, buffer, { contentType: file.type })
 
   if (uploadError) {
+    console.error('Upload error:', uploadError.message)
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 })
   }
 
-  return NextResponse.json({ path }, { status: 201 })
+  return NextResponse.json({ path, bucket: typeConfig.bucket }, { status: 201 })
 }
