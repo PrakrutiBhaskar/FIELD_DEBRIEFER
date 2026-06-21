@@ -8,6 +8,8 @@ const updateUserSchema = z.object({
   is_active: z.boolean().optional(),
 })
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 async function checkAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
   const { data } = await supabase
     .from('profiles')
@@ -31,8 +33,6 @@ export async function PATCH(
 
   const { id } = await params
 
-  // UUID validation
-  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (!UUID_REGEX.test(id)) {
     return NextResponse.json({ error: 'INVALID_ID' }, { status: 400 })
   }
@@ -81,20 +81,46 @@ export async function PATCH(
     }
   }
 
-  // Fetch existing role for audit log
+  // Last active admin protection for deactivation
+  if (updates.is_active === false) {
+    const { data: targetProfile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', id)
+      .single()
+
+    if (targetProfile?.role === 'admin') {
+      const { count } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', 'admin')
+        .eq('is_active', true)
+
+      if ((count ?? 0) <= 1) {
+        return NextResponse.json({
+          error: 'LAST_ADMIN',
+          message: 'Cannot deactivate the last active admin account.'
+        }, { status: 400 })
+      }
+    }
+  }
+
+  // Fetch existing for audit log
   const { data: existing } = await supabase
     .from('profiles')
-    .select('role, is_active')
+    .select('role, is_active, region')
     .eq('id', id)
     .single()
 
-  // Apply update
   const { error } = await supabase
     .from('profiles')
     .update(updates)
     .eq('id', id)
 
-  if (error) return NextResponse.json({ error: 'DB_ERROR' }, { status: 500 })
+  if (error) {
+    console.error('Admin update error:', error.message)
+    return NextResponse.json({ error: 'DB_ERROR', message: 'Failed to update user.' }, { status: 500 })
+  }
 
   // Write audit log
   await supabase.from('audit_logs').insert({
