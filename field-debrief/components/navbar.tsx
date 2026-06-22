@@ -41,6 +41,7 @@ export default function Navbar() {
     { href: '/visits',    label: 'My Visits',   roles: ['officer', 'manager', 'admin'] },
     { href: '/submit',    label: 'New Visit',    roles: ['officer', 'manager', 'admin'] },
     { href: '/dashboard', label: 'Dashboard',    roles: ['manager', 'admin'] },
+    { href: '/patterns',  label: 'Patterns',     roles: ['manager', 'admin'] },
     { href: '/admin',     label: 'Admin',        roles: ['admin'] },
   ]
 

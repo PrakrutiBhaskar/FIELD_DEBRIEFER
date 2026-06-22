@@ -1,4 +1,6 @@
 # Security Architecture
+> This document supersedes `05-security-architecture.md`. See also `PRIVACY.md` for data handling policy.
+
 ## Field Visit Debrief Tool — The/Nudge Foundation
 
 **Last updated:** June 2026  
