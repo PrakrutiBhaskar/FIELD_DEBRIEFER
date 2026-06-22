@@ -44,11 +44,23 @@ export async function GET(
     .single()
 
   if (error || !visit) {
+    console.error('[visits/:id] query failed', {
+      id,
+      userId: user.id,
+      profileRole: profile.role,
+      errorCode: error?.code,
+      errorMessage: error?.message,
+      errorDetails: error?.details,
+      errorHint: error?.hint,
+    })
     return NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
   }
 
   // Application-level ownership check
   if (profile.role === 'officer' && visit.officer_id !== user.id) {
+    console.error('[visits/:id] officer ownership mismatch', {
+      id, userId: user.id, officerIdOnVisit: visit.officer_id,
+    })
     return NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
   }
 
@@ -60,9 +72,25 @@ export async function GET(
       .single()
 
     if (!officerProfile || officerProfile.region !== profile.region) {
+      console.error('[visits/:id] manager region mismatch', {
+        id, managerRegion: profile.region, officerRegion: officerProfile?.region,
+      })
       return NextResponse.json({ error: { code: 'NOT_FOUND' } }, { status: 404 })
     }
   }
 
-  return NextResponse.json({ visit })
+  // Supabase returns joined relations as arrays even for many-to-one /
+  // 1:1 foreign keys, so `locations`/`debriefs` arrive as `{...}[]`
+  // rather than `{...} | null`. Unwrap the first element so the
+  // frontend can treat them as singular objects.
+  const unwrap = <T,>(val: T[] | T | null): T | null =>
+    Array.isArray(val) ? (val[0] ?? null) : val
+
+  const normalisedVisit = {
+    ...(visit as Record<string, any>),
+    locations: unwrap((visit as Record<string, any>).locations),
+    debriefs:  unwrap((visit as Record<string, any>).debriefs),
+  }
+
+  return NextResponse.json({ visit: normalisedVisit })
 }
