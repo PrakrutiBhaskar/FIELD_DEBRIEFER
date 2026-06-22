@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { SkeletonPage } from '@/components/skeleton'
 import { toast } from '@/components/toast'
+import ExportButtons from '@/components/export-buttons'
 
 type Visit = {
   id: string; visit_date: string; program_area: string; debrief_status: string
@@ -46,6 +47,10 @@ export default function ManagerDashboard() {
     return true
   })
 
+  // Human-readable label for the active filters, e.g. "Escalate · Agriculture"
+  const filterContextLabel = [filterFlag, filterProgram].filter(Boolean).join(' · ') || 'All visits'
+  const filterContext = { filters: filterContextLabel }
+
   const toggleSelect = (id: string) => {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
@@ -72,24 +77,32 @@ export default function ManagerDashboard() {
     <div className="min-h-screen py-8 px-4" style={{ background: '#F5F0E8' }}>
       <div className="max-w-3xl mx-auto">
 
-        <div className="flex items-start justify-between mb-6">
+        <div className="flex items-start justify-between mb-6 gap-4">
           <div>
             <h1 className="text-2xl font-bold" style={{ color: '#1E2A22' }}>Manager Dashboard</h1>
             <p className="text-sm mt-1" style={{ color: '#6B7C74' }}>
               {filtered.length} visits · {selected.length > 0 && `${selected.length} selected`}
             </p>
           </div>
-          <button onClick={generateReport}
-            disabled={selected.length < 3 || generatingReport}
-            className="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
-            style={{
-              background: selected.length >= 3 ? '#B5521B' : '#DDD6C8',
-              color: selected.length >= 3 ? '#FDFAF5' : '#6B7C74',
-              cursor: selected.length < 3 ? 'not-allowed' : 'pointer',
-            }}
-          >
-            {generatingReport ? 'Generating…' : `Pattern report (${selected.length} selected)`}
-          </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <ExportButtons
+              visitIds={selected.length > 0 ? selected : filtered.map(v => v.id)}
+              reportText={report}
+              totalVisits={visits.length}
+              filterContext={filterContext}
+            />
+            <button onClick={generateReport}
+              disabled={selected.length < 3 || generatingReport}
+              className="rounded-xl px-4 py-2.5 text-sm font-medium transition-colors"
+              style={{
+                background: selected.length >= 3 ? '#B5521B' : '#DDD6C8',
+                color: selected.length >= 3 ? '#FDFAF5' : '#6B7C74',
+                cursor: selected.length < 3 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              {generatingReport ? 'Generating…' : `Pattern report (${selected.length} selected)`}
+            </button>
+          </div>
         </div>
 
         {/* Filters */}

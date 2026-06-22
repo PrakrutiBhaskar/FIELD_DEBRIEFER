@@ -281,12 +281,22 @@ export default function VisitDetailPage(_props: PageProps) {
   const [activeCitation,   setActiveCitation]   = useState<SourceCitation | null>(null)
   const [sourceTab,        setSourceTab]        = useState<'transcript' | 'notes'>('transcript')
 
+  const [loadError, setLoadError] = useState<string | null>(null)
+
   const fetchVisit = async () => {
-    const res  = await fetch(`/api/v1/visits/${id}`)
-    const data = await res.json()
-    if (data.visit) {
-      setVisit(data.visit)
-      setStatus(data.visit.debrief_status)
+    try {
+      const res  = await fetch(`/api/v1/visits/${id}`)
+      const data = await res.json()
+      if (res.ok && data.visit) {
+        setVisit(data.visit)
+        setStatus(data.visit.debrief_status)
+        setLoadError(null)
+      } else {
+        setLoadError(data?.error?.code || `HTTP_${res.status}`)
+      }
+    } catch (err) {
+      setLoadError('NETWORK_ERROR')
+      console.error('Failed to fetch visit:', err)
     }
   }
 
@@ -322,10 +332,31 @@ export default function VisitDetailPage(_props: PageProps) {
 
   if (!visit) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: C.bg }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: C.muted }}>
-        <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
-        Loading visit…
-      </div>
+      {loadError ? (
+        <div style={{ textAlign: 'center', maxWidth: '20rem' }}>
+          <p style={{ fontSize: '0.875rem', fontWeight: 500, color: '#7F1D1D', marginBottom: '0.4rem' }}>
+            {loadError === 'UNAUTHORIZED' ? 'You need to log in to view this visit.'
+              : loadError === 'NOT_FOUND' ? "This visit doesn't exist or you don't have access to it."
+              : 'Something went wrong loading this visit.'}
+          </p>
+          <p style={{ fontSize: '0.75rem', color: C.muted }}>({loadError})</p>
+          <button
+            onClick={() => fetchVisit()}
+            style={{
+              marginTop: '0.75rem', background: C.accent, color: '#FDFAF5', border: 'none',
+              borderRadius: '0.75rem', padding: '0.5rem 1rem', fontSize: '0.875rem',
+              fontWeight: 500, cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: C.muted }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: C.accent, display: 'inline-block', animation: 'pulse 1.5s infinite' }} />
+          Loading visit…
+        </div>
+      )}
     </div>
   )
 
