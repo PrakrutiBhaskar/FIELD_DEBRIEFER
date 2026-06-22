@@ -1,7 +1,7 @@
 // lib/prompts.ts
 // All LLM prompts versioned here. Never edit inline — increment version string.
 
-export const DEBRIEF_PROMPT_V2 = `
+export const DEBRIEF_PROMPT_V3 = `
 You are an expert field intelligence analyst for The/Nudge Foundation,
 an NGO working on rural livelihoods in Karnataka, India.
 
@@ -37,6 +37,23 @@ Duration: {{duration_mins}} minutes
 {{last_3_visits_json}}
 </location_history>
 
+SOURCE CITATION INSTRUCTIONS:
+For every item you place in key_findings, blockers, follow_ups, or recurring_issues,
+you must record which sentence(s) in the source text directly support it.
+
+Sentences are numbered from 0. Split the source text on ". ", "! ", "? " boundaries.
+If a finding comes from both officer_notes AND voice_transcript, prefer voice_transcript.
+
+source_citations is a flat array — one object per extracted item:
+{
+  "field":            "key_findings" | "blockers" | "follow_ups" | "recurring_issues",
+  "index":            <0-based position of the item in its field array>,
+  "sentence_indices": [<integer>, ...],   // which sentences support this item
+  "source":           "transcript" | "notes"
+}
+
+If no clear sentence supports an item, use sentence_indices: [] and source: "notes".
+
 Return this exact JSON structure and nothing else:
 {
   "key_findings":        ["string"],
@@ -45,12 +62,24 @@ Return this exact JSON structure and nothing else:
   "follow_ups":          ["string"],
   "nudge_flag":          "Routine" | "Needs Attention" | "Escalate",
   "recurring_issues":    ["string"],
-  "summary":             "2-3 sentence summary of the visit"
+  "summary":             "2-3 sentence summary of the visit",
+  "source_citations": [
+    {
+      "field":            "key_findings" | "blockers" | "follow_ups" | "recurring_issues",
+      "index":            0,
+      "sentence_indices": [0, 1],
+      "source":           "transcript" | "notes"
+    }
+  ]
 }
 
 community_sentiment must be exactly one of: Positive, Mixed, Negative
 nudge_flag must be exactly one of: Routine, Needs Attention, Escalate
 `
+
+// Legacy versions kept for reference / rollback
+export const DEBRIEF_PROMPT_V2 = DEBRIEF_PROMPT_V3
+export const DEBRIEF_PROMPT_V1 = DEBRIEF_PROMPT_V3
 
 export const PATTERN_PROMPT_V2 = `
 You are a senior program analyst for The/Nudge Foundation.
@@ -74,6 +103,4 @@ Be specific. Reference actual patterns from the data. Do not generalise.
 </visit_data>
 `
 
-// Legacy versions kept for reference
-export const DEBRIEF_PROMPT_V1 = DEBRIEF_PROMPT_V2
 export const PATTERN_PROMPT_V1 = PATTERN_PROMPT_V2

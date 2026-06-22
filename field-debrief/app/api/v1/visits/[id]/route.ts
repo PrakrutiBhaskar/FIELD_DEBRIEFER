@@ -1,3 +1,4 @@
+// app/api/v1/visits/[id]/route.ts
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 
@@ -29,10 +30,15 @@ export async function GET(
   const { data: visit, error } = await supabase
     .from('visits')
     .select(`
-      id, visit_date, program_area, debrief_status, text_notes, created_at,
-      officer_id,
+      id, visit_date, program_area, debrief_status,
+      text_notes, transcript, transcription_status,
+      created_at, officer_id,
       locations(name, district),
-      debriefs(key_findings, blockers, community_sentiment, follow_ups, nudge_flag, recurring_issues, summary, officer_note)
+      debriefs(
+        key_findings, blockers, community_sentiment,
+        follow_ups, nudge_flag, recurring_issues,
+        summary, officer_note, source_citations
+      )
     `)
     .eq('id', id)
     .single()

@@ -4,7 +4,7 @@ Two AI operations in this system:
 - **Debrief Generation** — per visit, triggered async via DB webhook
 - **Pattern Report** — per manager request, streamed inline
 
-Both use `claude-sonnet-4-6`. Voice transcription uses AssemblyAI synchronous endpoint.
+Both use `Groq-sonnet-4-6`. Voice transcription uses AssemblyAI synchronous endpoint.
 
 ---
 
@@ -16,8 +16,8 @@ Both use `claude-sonnet-4-6`. Voice transcription uses AssemblyAI synchronous en
 | 2 | Supabase DB Webhook | Fires on INSERT to `visits` table | If webhook fails: cron picks up pending rows in 15 min |
 | 3 | Edge Function | Receives `visit_id`, fetches full visit row | If fetch fails: log + exit, cron retries |
 | 4 | AssemblyAI | POST audio, poll for transcript (sync mode) | If fails: set `transcription_status='failed'`, continue without transcript |
-| 5 | Claude API | POST debrief prompt, receive JSON | If fails or invalid JSON: retry once with stricter prompt |
-| 6 | Zod | Validate Claude output against `debriefOutputSchema` | If retry also fails: save `debrief_raw`, set `debrief_status='failed'` |
+| 5 | Groq API | POST debrief prompt, receive JSON | If fails or invalid JSON: retry once with stricter prompt |
+| 6 | Zod | Validate Groq output against `debriefOutputSchema` | If retry also fails: save `debrief_raw`, set `debrief_status='failed'` |
 | 7 | Supabase DB | INSERT into debriefs, UPDATE `visits.debrief_status='done'` | If DB write fails: log, cron retries |
 | 8 | Realtime | Client receives status change, renders debrief card | If client offline: next page load fetches status |
 
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     .order('visit_date', { ascending: false })
     .limit(3)
 
-  // 4. Build and call Claude
+  // 4. Build and call Groq
   const prompt = DEBRIEF_PROMPT_V1
     .replace('{{location_name}}',       visit.locations.name)
     .replace('{{visit_date}}',          visit.visit_date)
@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
     .replace('{{transcript}}',          transcript || '(no voice memo)')
     .replace('{{last_3_visits_json}}',  JSON.stringify(history || []))
 
-  const debrief = await callClaudeWithRetry(prompt, visitId, supabase)
+  const debrief = await callGroqWithRetry(prompt, visitId, supabase)
 
   if (debrief) {
     await supabase.from('debriefs').insert({ visit_id: visitId, ...debrief })
@@ -160,7 +160,7 @@ async function transcribeWithAssemblyAI(
 
 ---
 
-## Claude Prompts — `lib/prompts.ts`
+## Groq Prompts — `lib/prompts.ts`
 
 > **Rule:** Never edit prompts inline. All versions live here with version strings.
 > Version is logged in `audit_logs.metadata.prompt_version`.

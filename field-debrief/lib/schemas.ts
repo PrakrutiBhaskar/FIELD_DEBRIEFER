@@ -19,6 +19,16 @@ export const visitSubmitSchema = z.object({
   text_notes:    z.string().max(10000).optional(),
 })
 
+// One citation entry — one extracted item pointing back to its source sentence(s)
+export const sourceCitationSchema = z.object({
+  field:            z.enum(['key_findings', 'blockers', 'follow_ups', 'recurring_issues']),
+  index:            z.number().int().min(0),
+  sentence_indices: z.array(z.number().int().min(0)),
+  source:           z.enum(['transcript', 'notes']),
+})
+
+export type SourceCitation = z.infer<typeof sourceCitationSchema>
+
 export const debriefOutputSchema = z.object({
   key_findings:        z.array(z.string()).min(1),
   blockers:            z.array(z.string()),
@@ -27,6 +37,8 @@ export const debriefOutputSchema = z.object({
   nudge_flag:          z.enum(['Routine', 'Needs Attention', 'Escalate']),
   recurring_issues:    z.array(z.string()),
   summary:             z.string().min(20),
+  // Optional so old debriefs without citations still parse cleanly
+  source_citations:    z.array(sourceCitationSchema).optional().default([]),
 })
 
 export const officerNoteSchema = z.object({

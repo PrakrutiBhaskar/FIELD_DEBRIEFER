@@ -33,13 +33,13 @@ The/Nudge's field officers collectively generate thousands of ground-level obser
 - AI debrief generation < 15 seconds
 - Manager identifies a recurring pattern in < 30 seconds on dashboard
 - Zero visit submissions lost to network errors
-- Debrief structured field completeness > 90% (Claude extracts all required fields)
+- Debrief structured field completeness > 90% (Groq extracts all required fields)
 
 **In Scope (V1)**
 - Visit log form (structured + voice + text)
-- AI debrief generation via Claude
+- AI debrief generation via Groq
 - Longitudinal village intelligence panel
-- Manager dashboard with filters + Claude pattern narrative
+- Manager dashboard with filters + Groq pattern narrative
 - Two roles: Field Officer, Manager
 - Google SSO auth
 - Mobile-first responsive web
@@ -64,14 +64,14 @@ The/Nudge's field officers collectively generate thousands of ground-level obser
 - Structured fields: Location (dropdown + "other"), Date (default today), Program Area (dropdown), Stakeholders Met (multi-select + free text), Duration
 - Free-text notes field (optional if voice provided)
 - Voice memo upload (max 90 seconds, MP3/WAV/WebM)
-- On submit: voice → Whisper transcript → merged with text notes → Claude generates debrief → saved to DB
+- On submit: voice → Whisper transcript → merged with text notes → Groq generates debrief → saved to DB
 - Officer sees debrief card immediately after submission
 - Officer can add a manual note to the debrief (append only, not edit AI output)
 
 **F2 — AI Debrief Generation**
-Claude receives: structured fields + merged transcript + text notes + last 3 visits to same location (if any)
+Groq receives: structured fields + merged transcript + text notes + last 3 visits to same location (if any)
 
-Claude returns strict JSON:
+Groq returns strict JSON:
 ```json
 {
   "key_findings": ["string"],
@@ -84,7 +84,7 @@ Claude returns strict JSON:
 }
 ```
 
-Validation: Zod schema on response. If validation fails → retry once with stricter prompt. If retry fails → save raw Claude text as `debrief_raw`, flag visit as `debrief_status: failed` for manual review.
+Validation: Zod schema on response. If validation fails → retry once with stricter prompt. If retry fails → save raw Groq text as `debrief_raw`, flag visit as `debrief_status: failed` for manual review.
 
 **F3 — Longitudinal Village Panel**
 - When officer selects a location in the form, a side panel (or bottom sheet on mobile) loads the last 3 visits to that location
@@ -96,7 +96,7 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 - Filters: location, program area, nudge_flag, date range, officer
 - Each visit card: officer name, location, date, nudge_flag colour badge, summary
 - Click to expand: full debrief
-- "Generate Pattern Report" button: sends last N filtered visits to Claude → returns 3-paragraph narrative identifying recurring themes, sentiment trends, escalation recommendations
+- "Generate Pattern Report" button: sends last N filtered visits to Groq → returns 3-paragraph narrative identifying recurring themes, sentiment trends, escalation recommendations
 - Pattern report is displayed inline and can be copied to clipboard
 
 **F5 — Admin Panel**
@@ -123,8 +123,8 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 ### Error Handling Rules
 - Network timeout on submit: show retry button, do not lose form data (persist in sessionStorage)
 - Whisper API failure: save visit without transcript, flag as `transcription_status: failed`, show officer a message that voice processing failed but visit was saved
-- Claude API failure: save visit with `debrief_status: pending`, retry async via a queue (simple Supabase Edge Function cron), officer sees "Debrief generating..." state
-- Claude returns invalid JSON after retry: save raw text, flag `debrief_status: failed`, admin notified
+- Groq API failure: save visit with `debrief_status: pending`, retry async via a queue (simple Supabase Edge Function cron), officer sees "Debrief generating..." state
+- Groq returns invalid JSON after retry: save raw text, flag `debrief_status: failed`, admin notified
 
 ---
 
@@ -132,7 +132,7 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 
 ### Performance
 - Visit form load: < 1.5s on 4G
-- Debrief generation end-to-end (voice upload → transcript → Claude → display): < 20s P95
+- Debrief generation end-to-end (voice upload → transcript → Groq → display): < 20s P95
 - Dashboard load (50 visits): < 2s
 - Pattern report generation: < 15s (shown with streaming if possible)
 - Longitudinal panel load: < 500ms (indexed query)
@@ -150,8 +150,8 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 - Next.js on Vercel auto-scales serverless functions — no manual scaling needed at this volume
 
 ### Maintainability
-- All Claude prompts in a single `lib/prompts.ts` file — version controlled, easy to tune
-- Zod schemas for all API inputs and Claude outputs in `lib/schemas.ts`
+- All Groq prompts in a single `lib/prompts.ts` file — version controlled, easy to tune
+- Zod schemas for all API inputs and Groq outputs in `lib/schemas.ts`
 - Environment variables documented in `.env.example`
 - README covers: local setup, env vars, Supabase migration, deployment
 
@@ -182,8 +182,8 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 ### API Security
 - All Next.js API routes are server-side — Anthropic API key and Supabase service role key never reach the client
 - Rate limiting: Vercel Edge middleware limits `/api/*` to 30 requests/minute per IP
-- Input sanitization: all user inputs run through Zod validation before any DB write or Claude call
-- Claude prompt injection mitigation: user-provided text is clearly delimited in prompts with XML tags (`<officer_notes>...</officer_notes>`) and Claude is instructed to treat content between tags as data, not instructions
+- Input sanitization: all user inputs run through Zod validation before any DB write or Groq call
+- Groq prompt injection mitigation: user-provided text is clearly delimited in prompts with XML tags (`<officer_notes>...</officer_notes>`) and Groq is instructed to treat content between tags as data, not instructions
 
 ### Secrets Management
 - All secrets in Vercel environment variables (encrypted at rest)
@@ -192,7 +192,7 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 - No secrets hardcoded anywhere — enforced by pre-commit hook (simple grep check)
 
 ### Logging & Audit
-- Every Claude API call logged: timestamp, officer_id, visit_id, tokens_used, latency, success/fail
+- Every Groq API call logged: timestamp, officer_id, visit_id, tokens_used, latency, success/fail
 - Every visit submission logged with officer_id and IP (for abuse detection)
 - Logs stored in a `audit_logs` Supabase table, not exposed in UI, accessible to admin only
 - No PII logged — notes content never written to logs
@@ -221,7 +221,7 @@ Validation: Zod schema on response. If validation fails → retry once with stri
         ┌──────────┴──────────┐
         │                     │
    Supabase              External APIs
-   - PostgreSQL          - Claude API
+   - PostgreSQL          - Groq API
    - pgvector            - AssemblyAI
    - Auth                  (Whisper)
    - Storage
@@ -242,10 +242,10 @@ Validation: Zod schema on response. If validation fails → retry once with stri
 
 **AI Pipeline:**
 1. Voice file → AssemblyAI API → transcript text
-2. Transcript + form fields + location history → Claude API → structured JSON debrief
+2. Transcript + form fields + location history → Groq API → structured JSON debrief
 3. Zod validation → save to DB
 
-**Async retry:** Supabase Edge Function on cron (every 15 min) picks up visits with `debrief_status: pending` and retries Claude call.
+**Async retry:** Supabase Edge Function on cron (every 15 min) picks up visits with `debrief_status: pending` and retries Groq call.
 
 **Deployment:** Vercel (Next.js native, zero config, auto-scaling). Supabase cloud (managed Postgres).
 
@@ -288,7 +288,7 @@ visits (
                   CHECK (transcription_status IN ('none','pending','done','failed')),
   debrief_status  TEXT DEFAULT 'pending'
                   CHECK (debrief_status IN ('pending','done','failed')),
-  debrief_raw     TEXT,                    -- raw Claude output if JSON parse fails
+  debrief_raw     TEXT,                    -- raw Groq output if JSON parse fails
   retry_count     INT DEFAULT 0,
   embedding       VECTOR(1536),            -- stored for V2 semantic search
   created_at      TIMESTAMPTZ DEFAULT NOW()
@@ -312,7 +312,7 @@ debriefs (
 -- Audit log
 audit_logs (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  event_type      TEXT NOT NULL,           -- 'visit_submit','claude_call','auth_login' etc
+  event_type      TEXT NOT NULL,           -- 'visit_submit','Groq_call','auth_login' etc
   actor_id        UUID REFERENCES profiles(id),
   visit_id        UUID REFERENCES visits(id),
   metadata        JSONB,                   -- tokens_used, latency, success, etc
@@ -371,7 +371,7 @@ PATCH  /api/v1/admin/users/:id  Update role/region/status
 
 **Versioning:** `/api/v1/` prefix. V2 when breaking changes needed — old version maintained for 30 days.
 
-**Claude prompt versioning:** Each prompt has a version string in `lib/prompts.ts` (`DEBRIEF_PROMPT_V2`). Version stored in `audit_logs.metadata` so you can correlate output quality to prompt version.
+**Groq prompt versioning:** Each prompt has a version string in `lib/prompts.ts` (`DEBRIEF_PROMPT_V2`). Version stored in `audit_logs.metadata` so you can correlate output quality to prompt version.
 
 ---
 
@@ -380,7 +380,7 @@ PATCH  /api/v1/admin/users/:id  Update role/region/status
 ### Monitoring
 - Vercel Analytics: page load times, function execution times, error rates (built-in, zero config)
 - Supabase Dashboard: DB query performance, storage usage, auth events
-- Custom: `audit_logs` table queryable by admin for Claude call success rates and token spend
+- Custom: `audit_logs` table queryable by admin for Groq call success rates and token spend
 
 ### Alerting (V1 — lightweight)
 - Vercel sends email on function error spike (built-in)
@@ -397,14 +397,14 @@ GitHub → push to main
 
 ### Testing Strategy
 **V1 (realistic for 1 week):**
-- Manual smoke test checklist: submit visit with voice, submit without voice, trigger Claude failure, test RLS (log in as officer, verify you can't see other officer visits), test manager dashboard filters
+- Manual smoke test checklist: submit visit with voice, submit without voice, trigger Groq failure, test RLS (log in as officer, verify you can't see other officer visits), test manager dashboard filters
 - Zod schemas act as runtime validation tests
-- Claude prompt tested with 5 fixture inputs before launch
+- Groq prompt tested with 5 fixture inputs before launch
 
 **V2:**
 - Jest unit tests for utility functions and Zod schemas
 - Playwright E2E for critical paths (submit visit → debrief appears)
-- Claude prompt regression tests with fixture inputs and expected output structure
+- Groq prompt regression tests with fixture inputs and expected output structure
 
 ### Release Process
 - Feature branches → PR → review (self-review for solo build) → merge to main → Vercel auto-deploys
@@ -417,16 +417,16 @@ GitHub → push to main
 
 | Scenario | Mitigation |
 |---|---|
-| Officer submits with no text and empty/silent voice memo | Minimum transcript length check (> 20 words) before Claude call; show validation error "Please add notes or a voice memo with observations" |
+| Officer submits with no text and empty/silent voice memo | Minimum transcript length check (> 20 words) before Groq call; show validation error "Please add notes or a voice memo with observations" |
 | Same officer, same location, same day — double submit | Warning modal on second attempt: "You already logged a visit here today. Submit anyway?" — soft block |
-| Claude prompt injection via officer notes | Notes delimited with XML tags in prompt; Claude instructed to treat as data; Zod validation on output structure catches instruction-following failures |
+| Groq prompt injection via officer notes | Notes delimited with XML tags in prompt; Groq instructed to treat as data; Zod validation on output structure catches instruction-following failures |
 | AssemblyAI returns transcript in wrong language | Transcript quality check not done in V1 — documented as known limitation; officer can see transcript and flag issues |
 | Pattern report on 0–2 visits | UI blocks "Generate Report" button with tooltip: "Select at least 3 visits to generate a pattern report" |
 | Location "Other" text creates inconsistent names | Queued for admin verification; shown with ⚠️ badge until verified; longitudinal matching only runs on verified locations |
 | Manager region changes — old visits stranded | Visits are attributed to `location_id` not manager region. Manager sees visits based on their current region assignment. Historical visits in old region become invisible to them — documented limitation, acceptable for V1 |
 | Voice file too large (> 10MB) | Client-side validation before upload; clear error message with file size shown |
 | Supabase Storage upload succeeds but DB write fails | Wrapped in a transaction-like pattern: DB write first, Storage upload second; if Storage fails, visit is saved without voice but with error flag |
-| Claude API returns 429 (rate limit) | Exponential backoff retry (1s, 3s, 9s); if all fail, visit saved as `debrief_status: pending` for cron retry |
+| Groq API returns 429 (rate limit) | Exponential backoff retry (1s, 3s, 9s); if all fail, visit saved as `debrief_status: pending` for cron retry |
 | Officer submits future date | Client-side and server-side validation; Zod rejects `visit_date > today` |
 | Admin deletes a user — orphaned visits | Soft delete only: `profiles.is_active = false`; visits remain with `officer_id` intact; deactivated user cannot log in |
 
@@ -438,31 +438,31 @@ GitHub → push to main
 *Weakness:* Officer types "Hunasagi" and another typed "Hunasagi village" — they don't match, longitudinal panel shows nothing.
 *Fix applied:* Location is a dropdown from a canonical `locations` table, not free text. "Other" creates a pending entry that only becomes canonical after admin verification. Longitudinal matching only runs on canonical location IDs (UUIDs), not strings.
 
-**Attack 2: "Claude will hallucinate blockers that weren't in the notes"**
-*Weakness:* Claude is generative — it can add plausible-sounding but fabricated blockers.
-*Fix applied:* Claude prompt explicitly instructs: *"Only extract information explicitly present in the officer notes and transcript. Do not infer, assume, or add context not provided. If a field has no relevant content, return an empty array."* Officer can append a correction note to the debrief if they spot an error.
+**Attack 2: "Groq will hallucinate blockers that weren't in the notes"**
+*Weakness:* Groq is generative — it can add plausible-sounding but fabricated blockers.
+*Fix applied:* Groq prompt explicitly instructs: *"Only extract information explicitly present in the officer notes and transcript. Do not infer, assume, or add context not provided. If a field has no relevant content, return an empty array."* Officer can append a correction note to the debrief if they spot an error.
 
 **Attack 3: "RLS is only as good as your policy definitions — one wrong policy and data leaks"**
 *Weakness:* RLS misconfiguration is a common Supabase gotcha.
 *Fix applied:* RLS policies written and manually tested with three test accounts (officer A, officer B, manager for region X) before any real data. Policies committed to `/supabase/migrations/` and reviewed. Test: officer A cannot query officer B's visits via direct Supabase client call.
 
 **Attack 4: "Pattern report with 50 visits will blow your context window and cost a lot"**
-*Weakness:* 50 full visit transcripts sent to Claude = potentially 100K+ tokens.
+*Weakness:* 50 full visit transcripts sent to Groq = potentially 100K+ tokens.
 *Fix applied:* Pattern report sends only the `debrief.summary` and `debrief.blockers` for each visit, not full transcripts. Max 30 visits per pattern report (UI enforces). Estimated token cost per report: ~3K tokens = ~$0.01. Logged in audit_logs.
 
 **Attack 5: "AssemblyAI async transcription means the officer waits — what if they navigate away?"**
 *Weakness:* If transcription is async (polling), officer might close tab before debrief appears.
 *Fix applied:* AssemblyAI offers a synchronous endpoint for files < 90 seconds. Use synchronous mode for V1. If it exceeds timeout (rare), fall back to saving visit without transcript + async retry. Officer sees "Visit saved — debrief generating" state.
 
-**Attack 6: "Vercel serverless functions have a 10-second default timeout — Claude might exceed this"**
-*Weakness:* Claude + AssemblyAI sequentially could hit 15–20 seconds.
+**Attack 6: "Vercel serverless functions have a 10-second default timeout — Groq might exceed this"**
+*Weakness:* Groq + AssemblyAI sequentially could hit 15–20 seconds.
 *Fix applied:* Vercel Pro allows 60-second function timeout. Set `maxDuration = 60` on the submit route. Alternatively, decouple: submit saves visit immediately, debrief generation is triggered async via Supabase Edge Function. Officer sees optimistic UI — "Visit saved, debrief generating..." — then polls for result. This is the more robust architecture and is the final decision.
 
 **Improved flow:**
 ```
 Officer submits → API saves visit (< 1s) → triggers Supabase Edge Function async
 → Officer sees "Visit saved!" immediately
-→ Edge Function: AssemblyAI → Claude → update debrief → set debrief_status: done
+→ Edge Function: AssemblyAI → Groq → update debrief → set debrief_status: done
 → Client polls /api/v1/visits/:id every 3s → when done, debrief card appears
 → Total wait: 10–20s in background, officer not blocked
 ```
@@ -477,7 +477,7 @@ Officer submits → API saves visit (< 1s) → triggers Supabase Edge Function a
 | Technical Clarity | 18/20 | Stack, data model, API all specified; async flow adds slight implementation complexity |
 | Security | 17/20 | RLS, auth, secrets all defined; penetration testing not done (not expected for prototype) |
 | Scalability | 18/20 | Well within Supabase/Vercel limits at projected volume; pgvector ready for V2 |
-| Reliability | 16/20 | Async retry cron covers Claude failures; no chaos testing; acceptable for NGO prototype |
+| Reliability | 16/20 | Async retry cron covers Groq failures; no chaos testing; acceptable for NGO prototype |
 | Maintainability | 18/20 | Prompts versioned, schemas centralized, migrations committed; no automated tests in V1 |
 | Implementation Readiness | 18/20 | One remaining unknown: Vercel function timeout config needs Pro plan confirmation |
 
@@ -499,7 +499,7 @@ Now that the baseline is locked, here's the optimal build order:
 |---|---|
 | 1 | Supabase setup (schema, RLS, auth, storage bucket), Next.js project scaffold, Google SSO working end-to-end |
 | 2 | Visit submission form (all fields, validation), AssemblyAI voice upload + transcription |
-| 3 | Claude debrief generation (prompt, Zod validation, async Edge Function, polling UI) |
+| 3 | Groq debrief generation (prompt, Zod validation, async Edge Function, polling UI) |
 | 4 | Longitudinal village panel, My Visits page for officers |
 | 5 | Manager dashboard (visit feed, filters, nudge_flag badges, debrief expand) |
 | 6 | Pattern report generation, Recharts charts, admin user management |

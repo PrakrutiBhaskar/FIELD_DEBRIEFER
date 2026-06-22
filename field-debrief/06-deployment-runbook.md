@@ -159,7 +159,7 @@ ASSEMBLYAI_API_KEY=your-assemblyai-key
 |---|---|---|
 | Failed debriefs | `SELECT COUNT(*) FROM visits WHERE debrief_status='failed'` | Daily |
 | Pending visits older than 1 hour | `SELECT * FROM visits WHERE debrief_status='pending' AND created_at < NOW() - INTERVAL '1 hour'` | Daily |
-| Claude API spend | Anthropic Console → Usage | Weekly |
+| Groq API spend | Anthropic Console → Usage | Weekly |
 | Edge Function errors | Supabase Dashboard → Edge Functions → Logs | On deploy |
 | Auth failures | Supabase Dashboard → Authentication → Logs | Weekly |
 | Storage usage | Supabase Dashboard → Storage → Usage | Weekly |

@@ -52,7 +52,7 @@
 
 ## Day 3 — Async AI Pipeline (Most Critical Day)
 
-**Goal:** Voice → Transcript → Claude Debrief → DB, fully async.
+**Goal:** Voice → Transcript → Groq Debrief → DB, fully async.
 
 > Build and test this pipeline in isolation FIRST before wiring to the form.
 
@@ -64,7 +64,7 @@
 1. Fetch visit row (id, voice_memo_url, text_notes, location_id, officer_id)
 2. If voice_memo_url: generate signed URL → POST to AssemblyAI → poll until done → get transcript
 3. Fetch last 3 visits to same location (for context)
-4. Build Claude prompt (see Doc 4 for exact prompt text)
+4. Build Groq prompt (see Doc 4 for exact prompt text)
 5. POST to Anthropic API → parse JSON → validate with Zod
 6. If valid: INSERT into debriefs, UPDATE visits SET debrief_status='done'
 7. If invalid: retry once with stricter prompt
@@ -102,7 +102,7 @@
 - [ ] Click to expand: full debrief inline
 - [ ] Escalate-flagged visits highlighted with red left border
 - [ ] "Generate Pattern Report" button: enabled only when 3+ visits in current filter
-- [ ] `POST /api/v1/pattern`: sends last 30 filtered visit summaries + blockers to Claude → streams 3-paragraph narrative
+- [ ] `POST /api/v1/pattern`: sends last 30 filtered visit summaries + blockers to Groq → streams 3-paragraph narrative
 - [ ] Pattern report displayed inline with copy-to-clipboard button
 
 **End-of-day check:** Manager account sees only their region's visits, not other regions.
@@ -118,7 +118,7 @@
 - [ ] Edit role/region: `PATCH /api/v1/admin/users/:id` — admin only
 - [ ] Deactivate user: soft delete (`is_active=false`) — user can no longer log in
 - [ ] Mobile: test all forms on 390px viewport, fix touch targets < 44px, fix bottom sheet longitudinal panel
-- [ ] Error states: network timeout retry, AssemblyAI failure message, Claude failure message
+- [ ] Error states: network timeout retry, AssemblyAI failure message, Groq failure message
 - [ ] Seed 10 realistic visits across 3 locations with The/Nudge's actual taxonomies
 
 **End-of-day check:** All 3 roles work correctly from a real phone.
@@ -165,7 +165,7 @@ field-debrief/
 │   ├── dashboard/
 │   └── admin/
 ├── lib/
-│   ├── prompts.ts              ← ALL Claude prompts versioned here
+│   ├── prompts.ts              ← ALL Groq prompts versioned here
 │   ├── schemas.ts              ← ALL Zod schemas here
 │   ├── supabase/
 │   │   ├── client.ts           ← browser client
